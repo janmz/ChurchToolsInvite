@@ -5,12 +5,13 @@ import (
 	"strings"
 
 	churchtools "github.com/janmz/churchtools-invite/internal/churchtools"
+	config "github.com/janmz/churchtools-invite/internal/config"
 )
 
-func interactiveExportOptions(client *churchtools.Client) (churchtools.PersonListOptions, error) {
+func interactiveExportOptions(client *churchtools.Client, cfg *config.Config) (churchtools.PersonListOptions, error) {
 	opts := churchtools.PersonListOptions{}
 
-	campusID, err := client.CurrentUserCampusID()
+	campusID, err := ensureCampusID(client, cfg)
 	if err != nil {
 		return churchtools.PersonListOptions{}, err
 	}
@@ -19,26 +20,10 @@ func interactiveExportOptions(client *churchtools.Client) (churchtools.PersonLis
 		opts.CampusID = campusID
 		name := campusDisplayName(client, campusID)
 		if name != "" {
-			fmt.Printf("\nStandort automatisch: %s (ID %d)\n", name, campusID)
+			fmt.Printf("\nStandort: %s (ID %d)\n", name, campusID)
 		} else {
-			fmt.Printf("\nStandort automatisch: ID %d\n", campusID)
+			fmt.Printf("\nStandort: ID %d\n", campusID)
 		}
-	} else {
-		campuses, err := client.ListCampuses()
-		if err != nil {
-			return churchtools.PersonListOptions{}, err
-		}
-
-		campusItems := make([]menuItem, len(campuses))
-		for i, campus := range campuses {
-			campusItems[i] = menuItem{id: campus.ID, name: campus.Name}
-		}
-
-		campusID, err = promptMenu("Standort auswählen", campusItems, false)
-		if err != nil {
-			return churchtools.PersonListOptions{}, err
-		}
-		opts.CampusID = campusID
 	}
 
 	mode, err := promptFilterMode()

@@ -69,7 +69,7 @@ func runExport() error {
 
 	var opts churchtools.PersonListOptions
 	if exportInteractive {
-		opts, err = interactiveExportOptions(client)
+		opts, err = interactiveExportOptions(client, &cfg)
 		if err != nil {
 			return err
 		}
@@ -80,7 +80,7 @@ func runExport() error {
 			StatusID: exportStatus,
 		}
 		if !exportAllCampuses {
-			if err := applyDefaultCampus(client, &opts); err != nil {
+			if err := applyDefaultCampus(client, &cfg, &opts); err != nil {
 				return err
 			}
 		}

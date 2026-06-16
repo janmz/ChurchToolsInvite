@@ -47,7 +47,11 @@ func Run(client *churchtools.Client, entries []csvfile.Entry, opts Options) ([]R
 		if !opts.Reinvite && person.HasChurchToolsAccount() {
 			result.Success = true
 			result.Skipped = true
-			result.Message = fmt.Sprintf("übersprungen: %s (%s)", label, person.AccountStatusLabel())
+			prefix := ""
+			if opts.DryRun {
+				prefix = "dry-run: "
+			}
+			result.Message = fmt.Sprintf("%swürde überspringen: %s (%s)", prefix, label, person.AccountStatusLabel())
 			results = append(results, result)
 			continue
 		}

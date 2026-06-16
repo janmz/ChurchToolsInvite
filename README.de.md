@@ -111,6 +111,7 @@ Kopiere `config.example.json` nach `config.json` oder nutze Umgebungsvariablen:
 | `CT_LOGIN_TOKEN` | API-Login-Token |
 | `CT_USERNAME` / `CT_PASSWORD` | Alternative zum Token |
 | `delay_ms` | Pause zwischen Einladungen in Millisekunden (Standard: 500) |
+| `campus_id` | Standard-Standort, wenn der Benutzer keinen hat (wird bei Bedarf interaktiv gesetzt) |
 | `permission_groups.edit_persons` | Gruppe für Schreibzugriff (Standard: Personen bearbeiten) |
 | `permission_groups.export_persons` | Gruppe für Export (Standard: Personen exportieren) |
 
@@ -169,7 +170,7 @@ Empfohlen vor dem ersten echten Versand. Alle Optionen von `invite`
 | `export -o DATEI` | Personenliste als Einladungs-CSV exportieren, Default `personen.csv` |
 | `export -i` | Standort und Filter interaktiv wählen |
 | `export --campus-id ID` | Nur Personen dieses Standorts |
-| `export --all-campuses` | Keinen Standort-Filter (Standard: Standort des Nutzers) |
+| `export --all-campuses` | Keinen Standort-Filter (Standard: Standort des Nutzers bzw. `campus_id` in config) |
 | `export --status-id ID` | Nur Personen mit diesem Status |
 | `export --group-id ID` | Nur Gruppenmitglieder |
 | `invite -f DATEI` | Einladungen senden |

@@ -200,12 +200,18 @@ func (c *Client) WhoAmI() (Person, error) {
 		return Person{}, &APIError{StatusCode: resp.StatusCode, Body: string(body)}
 	}
 
-	var envelope apiEnvelope
+	var envelope struct {
+		Data json.RawMessage `json:"data"`
+	}
 	if err := json.Unmarshal(body, &envelope); err != nil {
 		return Person{}, fmt.Errorf("whoami parsen: %w", err)
 	}
-	c.personID = envelope.Data.ID
-	return envelope.Data, nil
+	person, err := decodePerson(envelope.Data)
+	if err != nil {
+		return Person{}, fmt.Errorf("whoami parsen: %w", err)
+	}
+	c.personID = person.ID
+	return person, nil
 }
 
 // LoginToken returns the API login token for a person (requires permission).
@@ -272,11 +278,13 @@ func (c *Client) PersonByID(id int) (Person, error) {
 		return Person{}, &APIError{StatusCode: resp.StatusCode, Body: string(body)}
 	}
 
-	var envelope apiEnvelope
+	var envelope struct {
+		Data json.RawMessage `json:"data"`
+	}
 	if err := json.Unmarshal(body, &envelope); err != nil {
 		return Person{}, fmt.Errorf("person parsen: %w", err)
 	}
-	return envelope.Data, nil
+	return decodePerson(envelope.Data)
 }
 
 // GlobalPermissions returns permission metadata for the current user.
@@ -375,8 +383,11 @@ type Person struct {
 	Email                  string                  `json:"email"`
 	Emails                 []PersonEmail           `json:"emails"`
 	CMSUserID              string                  `json:"cmsUserId"`
+	InvitationStatus       string                  `json:"invitationStatus"`
 	IsSystemUser           *bool                   `json:"isSystemUser"`
+	IsAllowedToLogin       *bool                   `json:"isAllowedToLogin,omitempty"`
 	AcceptedSecurity       *string                 `json:"acceptedsecurity"`
+	LastLogin              *string                 `json:"lastLogin,omitempty"`
 	PrivacyPolicyAgreement *PrivacyPolicyAgreement `json:"privacyPolicyAgreement"`
 }
 

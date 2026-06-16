@@ -18,6 +18,7 @@ type Config struct {
 	Username         string           `json:"username,omitempty"`
 	Password         string           `json:"password,omitempty"`
 	DelayMS          int              `json:"delay_ms,omitempty"`
+	CampusID         int              `json:"campus_id,omitempty"`
 	PermissionGroups PermissionGroups `json:"permission_groups,omitempty"`
 }
 

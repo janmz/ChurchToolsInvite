@@ -116,8 +116,8 @@ func (c *Client) groupMemberPersonIDs(groupID int) ([]int, error) {
 func decodePersonList(items []json.RawMessage) ([]Person, error) {
 	persons := make([]Person, 0, len(items))
 	for _, item := range items {
-		var person Person
-		if err := json.Unmarshal(item, &person); err != nil {
+		person, err := decodePerson(item)
+		if err != nil {
 			return nil, fmt.Errorf("person parsen: %w", err)
 		}
 		if person.ID <= 0 {

@@ -2,6 +2,35 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.1.1.14] - 2026-06-16 22:12:13
+
+### Fixed
+
+- Bereits eingeladene/registrierte Personen werden über `invitationStatus`
+  erkannt (`accepted`, `pending`); die bisherigen Felder (`isSystemUser` etc.)
+  liefert ChurchTools in Personendetails oft gar nicht mit
+
+## [2.1.1.13] - 2026-06-16 22:06:04
+
+### Fixed
+
+- `invite --dry-run`: bereits eingeladene Personen werden erkannt (ChurchTools
+  liefert u. a. `isSystemUser` als Zahl); Ausgabe
+  `dry-run: würde überspringen: …`
+
+## [2.1.1.12] - 2026-06-16 21:56:10
+
+### Added
+
+- `whoami`: Standort-ID immer ausgeben (eigene Zeile)
+- `config.json`: Feld `campus_id` als Standard-Standort
+
+### Changed
+
+- `export`: ohne `--all-campuses` auf Standort des Nutzers einschränken; fehlt
+  dieser, `campus_id` aus config oder einmalige interaktive Auswahl mit
+  Speicherung in config
+
 ## [2.1.0.10] - 2026-06-16 21:46:08
 
 ### Fixed

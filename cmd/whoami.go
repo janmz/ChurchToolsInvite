@@ -32,17 +32,26 @@ func runWhoAmI() error {
 		return err
 	}
 
-	fmt.Printf("Person-ID: %d\n", user.ID)
-	fmt.Printf("Name:      %s %s\n", user.FirstName, user.LastName)
-	fmt.Printf("E-Mail:    %s\n", user.Email)
+	fmt.Printf("Person-ID:   %d\n", user.ID)
+	fmt.Printf("Name:        %s %s\n", user.FirstName, user.LastName)
+	fmt.Printf("E-Mail:      %s\n", user.Email)
+
 	if user.CampusID > 0 {
-		name := campusDisplayName(client, user.CampusID)
-		if name != "" {
-			fmt.Printf("Standort:  %s (ID %d)\n", name, user.CampusID)
-		} else {
-			fmt.Printf("Standort:  ID %d\n", user.CampusID)
+		fmt.Printf("Standort-ID: %d\n", user.CampusID)
+		if name := campusDisplayName(client, user.CampusID); name != "" {
+			fmt.Printf("Standort:    %s\n", name)
+		}
+	} else {
+		fmt.Println("Standort-ID: nicht zugeordnet")
+		if cfg.CampusID > 0 {
+			if name := campusDisplayName(client, cfg.CampusID); name != "" {
+				fmt.Printf("Standard-Standort (config): %s (ID %d)\n", name, cfg.CampusID)
+			} else {
+				fmt.Printf("Standard-Standort (config): ID %d\n", cfg.CampusID)
+			}
 		}
 	}
-	fmt.Printf("Instanz:   %s\n", cfg.BaseURL)
+
+	fmt.Printf("Instanz:     %s\n", cfg.BaseURL)
 	return nil
 }

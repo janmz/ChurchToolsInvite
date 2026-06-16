@@ -23,6 +23,16 @@ func TestHasChurchToolsAccount(t *testing.T) {
 			want:   false,
 		},
 		{
+			name:   "invitation accepted",
+			person: churchtools.Person{InvitationStatus: "accepted"},
+			want:   true,
+		},
+		{
+			name:   "invitation pending",
+			person: churchtools.Person{InvitationStatus: "pending"},
+			want:   true,
+		},
+		{
 			name:   "system user",
 			person: churchtools.Person{IsSystemUser: &trueVal},
 			want:   true,

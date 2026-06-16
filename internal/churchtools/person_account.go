@@ -43,13 +43,23 @@ func (p *PrivacyPolicyAgreement) UnmarshalJSON(data []byte) error {
 // HasChurchToolsAccount reports whether the person already has or was invited to
 // a ChurchTools user account.
 func (p Person) HasChurchToolsAccount() bool {
+	switch normalizeInvitationStatus(p.InvitationStatus) {
+	case "accepted", "pending":
+		return true
+	}
 	if p.IsSystemUser != nil && *p.IsSystemUser {
+		return true
+	}
+	if p.IsAllowedToLogin != nil && *p.IsAllowedToLogin {
 		return true
 	}
 	if strings.TrimSpace(p.CMSUserID) != "" {
 		return true
 	}
 	if hasStringValue(p.AcceptedSecurity) {
+		return true
+	}
+	if hasStringValue(p.LastLogin) {
 		return true
 	}
 	if p.PrivacyPolicyAgreement != nil && hasStringValue(p.PrivacyPolicyAgreement.Date) {
@@ -60,13 +70,23 @@ func (p Person) HasChurchToolsAccount() bool {
 
 // AccountStatusLabel describes why a person is treated as already invited.
 func (p Person) AccountStatusLabel() string {
+	switch normalizeInvitationStatus(p.InvitationStatus) {
+	case "accepted":
+		return "Einladung bereits angenommen"
+	case "pending":
+		return "Einladung bereits versendet"
+	}
 	switch {
 	case p.IsSystemUser != nil && *p.IsSystemUser:
 		return "bereits ChurchTools-Benutzer"
+	case p.IsAllowedToLogin != nil && *p.IsAllowedToLogin:
+		return "darf sich bereits anmelden"
 	case strings.TrimSpace(p.CMSUserID) != "":
 		return "bereits Benutzername vergeben"
 	case hasStringValue(p.AcceptedSecurity):
 		return "Vertraulichkeitsvereinbarung bereits akzeptiert"
+	case hasStringValue(p.LastLogin):
+		return "bereits eingeloggt"
 	case p.PrivacyPolicyAgreement != nil && hasStringValue(p.PrivacyPolicyAgreement.Date):
 		return "Datenschutz-Einwilligung bereits erteilt"
 	default:
@@ -76,4 +96,8 @@ func (p Person) AccountStatusLabel() string {
 
 func hasStringValue(value *string) bool {
 	return value != nil && strings.TrimSpace(*value) != ""
+}
+
+func normalizeInvitationStatus(status string) string {
+	return strings.ToLower(strings.TrimSpace(status))
 }

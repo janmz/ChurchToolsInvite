@@ -93,6 +93,7 @@ Copy `config.example.json` to `config.json` or use environment variables:
 | `CT_LOGIN_TOKEN` | API login token |
 | `CT_USERNAME` / `CT_PASSWORD` | Alternative to token |
 | `delay_ms` | Delay between invitations in milliseconds (default: 500) |
+| `campus_id` | Default campus when the user has none (set interactively on first export) |
 | `permission_groups.edit_persons` | Group for write access (default: Personen bearbeiten) |
 | `permission_groups.export_persons` | Group for export (default: Personen exportieren) |
 
@@ -150,7 +151,7 @@ Recommended before the first real run. All invite options (`--reinvite`,
 | `export -o FILE` | Export persons to invite CSV format |
 | `export -i` | Choose campus and filters interactively |
 | `export --campus-id ID` | Export persons from this campus only |
-| `export --all-campuses` | No campus filter (default: logged-in user's campus) |
+| `export --all-campuses` | No campus filter (default: user's campus or `campus_id` in config) |
 | `export --status-id ID` | Export persons with this status only |
 | `export --group-id ID` | Export group members only |
 | `invite -f FILE` | Send invitations |

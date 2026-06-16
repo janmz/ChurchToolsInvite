@@ -46,6 +46,29 @@ func TestLoadAndSave(t *testing.T) {
 	}
 }
 
+func TestLoadCampusID(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+
+	cfg := config.Config{
+		BaseURL:    "https://demo.church.tools",
+		LoginToken: "secret-token",
+		CampusID:   42,
+	}
+
+	if err := config.Save(path, cfg); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	loaded, err := config.Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if loaded.CampusID != 42 {
+		t.Fatalf("campus_id = %d, want 42", loaded.CampusID)
+	}
+}
+
 func TestValidateRequiresAuth(t *testing.T) {
 	cfg := config.Config{BaseURL: "https://demo.church.tools"}
 	if err := cfg.Validate(); err == nil {
