@@ -1,0 +1,26 @@
+# Secrets and local config
+config.json
+.env
+*.local.json
+
+# Build output
+/masseneinladung
+/masseneinladung.exe
+/dist/
+/bin/
+
+# Go
+/vendor/
+*.test
+*.out
+coverage.out
+
+# IDE / AI instructions
+.cursor/
+.cursorrules
+AGENTS.md
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db

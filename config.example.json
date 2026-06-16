@@ -1,0 +1,5 @@
+{
+  "base_url": "https://meine-gemeinde.church.tools",
+  "login_token": "HIER_LOGIN_TOKEN_EINTRAGEN",
+  "delay_ms": 500
+}

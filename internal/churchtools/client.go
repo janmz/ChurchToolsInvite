@@ -1,0 +1,486 @@
+package churchtools
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/cookiejar"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+)
+
+const (
+	oldAPIModule = "churchdb/ajax"
+	inviteFunc   = "invitePersonToSystem"
+)
+
+// APIError describes a failed ChurchTools response.
+type APIError struct {
+	StatusCode int
+	Message    string
+	Body       string
+}
+
+func (e *APIError) Error() string {
+	if e.Message != "" {
+		return fmt.Sprintf("churchtools API (%d): %s", e.StatusCode, e.Message)
+	}
+	return fmt.Sprintf("churchtools API (%d): %s", e.StatusCode, e.Body)
+}
+
+// Client talks to ChurchTools REST and legacy AJAX APIs.
+type Client struct {
+	baseURL    string
+	loginToken string
+	username   string
+	password   string
+	http       *http.Client
+	csrfToken  string
+	personID   int
+}
+
+// NewClient creates a client without authenticating yet.
+func NewClient(baseURL, loginToken, username, password string) *Client {
+	jar, _ := cookiejar.New(nil)
+	return &Client{
+		baseURL:    strings.TrimSuffix(strings.TrimSpace(baseURL), "/"),
+		loginToken: strings.TrimSpace(loginToken),
+		username:   strings.TrimSpace(username),
+		password:   strings.TrimSpace(password),
+		http: &http.Client{
+			Timeout: 60 * time.Second,
+			Jar:     jar,
+		},
+	}
+}
+
+// Login authenticates and loads a CSRF token for legacy calls.
+func (c *Client) Login() error {
+	if c.loginToken != "" {
+		if err := c.authenticateWithToken(); err != nil {
+			return err
+		}
+	} else {
+		if err := c.authenticateWithPassword(); err != nil {
+			return err
+		}
+	}
+
+	token, err := c.fetchCSRFToken()
+	if err != nil {
+		return err
+	}
+	c.csrfToken = token
+	return nil
+}
+
+func (c *Client) authenticateWithToken() error {
+	req, err := http.NewRequest(http.MethodGet, c.apiURL("/whoami"), nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Login "+c.loginToken)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("login mit token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return &APIError{
+			StatusCode: resp.StatusCode,
+			Message:    "Login-Token ungültig oder abgelaufen",
+			Body:       string(body),
+		}
+	}
+
+	var envelope apiEnvelope
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return fmt.Errorf("whoami parsen: %w", err)
+	}
+	c.personID = envelope.Data.ID
+	return nil
+}
+
+func (c *Client) authenticateWithPassword() error {
+	payload, err := json.Marshal(map[string]string{
+		"username": c.username,
+		"password": c.password,
+	})
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, c.apiURL("/login"), bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("login mit passwort: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return &APIError{
+			StatusCode: resp.StatusCode,
+			Message:    "Benutzername oder Passwort ungültig",
+			Body:       string(body),
+		}
+	}
+
+	user, err := c.WhoAmI()
+	if err != nil {
+		return err
+	}
+	c.personID = user.ID
+	return nil
+}
+
+func (c *Client) fetchCSRFToken() (string, error) {
+	req, err := http.NewRequest(http.MethodGet, c.apiURL("/csrftoken"), nil)
+	if err != nil {
+		return "", err
+	}
+	c.applyAuth(req)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("csrf-token abrufen: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return "", &APIError{
+			StatusCode: resp.StatusCode,
+			Message:    "CSRF-Token konnte nicht geladen werden",
+			Body:       string(body),
+		}
+	}
+
+	var envelope struct {
+		Data string `json:"data"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return "", fmt.Errorf("csrf-token parsen: %w", err)
+	}
+	if envelope.Data == "" {
+		return "", errors.New("leerer CSRF-Token")
+	}
+	return envelope.Data, nil
+}
+
+// WhoAmI returns the authenticated user.
+func (c *Client) WhoAmI() (Person, error) {
+	req, err := http.NewRequest(http.MethodGet, c.apiURL("/whoami"), nil)
+	if err != nil {
+		return Person{}, err
+	}
+	c.applyAuth(req)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return Person{}, fmt.Errorf("whoami: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusUnauthorized {
+		if err := c.relogin(); err != nil {
+			return Person{}, err
+		}
+		return c.WhoAmI()
+	}
+	if resp.StatusCode != http.StatusOK {
+		return Person{}, &APIError{StatusCode: resp.StatusCode, Body: string(body)}
+	}
+
+	var envelope apiEnvelope
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return Person{}, fmt.Errorf("whoami parsen: %w", err)
+	}
+	c.personID = envelope.Data.ID
+	return envelope.Data, nil
+}
+
+// LoginToken returns the API login token for a person (requires permission).
+func (c *Client) LoginToken(personID int) (string, error) {
+	path := fmt.Sprintf("/persons/%d/logintoken", personID)
+	req, err := http.NewRequest(http.MethodGet, c.apiURL(path), nil)
+	if err != nil {
+		return "", err
+	}
+	c.applyAuth(req)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("login-token abrufen: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusUnauthorized {
+		if err := c.relogin(); err != nil {
+			return "", err
+		}
+		return c.LoginToken(personID)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", &APIError{
+			StatusCode: resp.StatusCode,
+			Message:    "Login-Token konnte nicht gelesen werden (Berechtigung?)",
+			Body:       string(body),
+		}
+	}
+
+	var envelope struct {
+		Data string `json:"data"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return "", fmt.Errorf("login-token parsen: %w", err)
+	}
+	return envelope.Data, nil
+}
+
+// PersonByID loads a single person record.
+func (c *Client) PersonByID(id int) (Person, error) {
+	req, err := http.NewRequest(http.MethodGet, c.apiURL("/persons/"+strconv.Itoa(id)), nil)
+	if err != nil {
+		return Person{}, err
+	}
+	c.applyAuth(req)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return Person{}, fmt.Errorf("person laden: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusUnauthorized {
+		if err := c.relogin(); err != nil {
+			return Person{}, err
+		}
+		return c.PersonByID(id)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return Person{}, &APIError{StatusCode: resp.StatusCode, Body: string(body)}
+	}
+
+	var envelope apiEnvelope
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return Person{}, fmt.Errorf("person parsen: %w", err)
+	}
+	return envelope.Data, nil
+}
+
+// InvitePerson sends the ChurchTools system invitation e-mail.
+func (c *Client) InvitePerson(personID int) error {
+	if c.csrfToken == "" {
+		token, err := c.fetchCSRFToken()
+		if err != nil {
+			return err
+		}
+		c.csrfToken = token
+	}
+
+	form := url.Values{}
+	form.Set("func", inviteFunc)
+	form.Set("id", strconv.Itoa(personID))
+
+	req, err := http.NewRequest(http.MethodPost, c.oldAPIURL(), strings.NewReader(form.Encode()))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("CSRF-Token", c.csrfToken)
+	c.applyAuth(req)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("einladung senden: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusUnauthorized {
+		if err := c.relogin(); err != nil {
+			return err
+		}
+		return c.InvitePerson(personID)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return &APIError{
+			StatusCode: resp.StatusCode,
+			Message:    "Legacy-API-Aufruf fehlgeschlagen",
+			Body:       string(body),
+		}
+	}
+
+	var legacy legacyResponse
+	if err := json.Unmarshal(body, &legacy); err != nil {
+		return fmt.Errorf("einladungsantwort parsen: %w (body: %s)", err, string(body))
+	}
+	if legacy.Status != "success" {
+		msg := legacy.Message
+		if msg == "" {
+			msg = string(body)
+		}
+		return &APIError{StatusCode: resp.StatusCode, Message: msg, Body: string(body)}
+	}
+	return nil
+}
+
+// GlobalPermissions returns permission metadata for the current user.
+func (c *Client) GlobalPermissions() (map[string]any, error) {
+	req, err := http.NewRequest(http.MethodGet, c.apiURL("/permissions/global"), nil)
+	if err != nil {
+		return nil, err
+	}
+	c.applyAuth(req)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("berechtigungen laden: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusUnauthorized {
+		if err := c.relogin(); err != nil {
+			return nil, err
+		}
+		return c.GlobalPermissions()
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, &APIError{StatusCode: resp.StatusCode, Body: string(body)}
+	}
+
+	var envelope struct {
+		Data map[string]any `json:"data"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return nil, fmt.Errorf("berechtigungen parsen: %w", err)
+	}
+	return envelope.Data, nil
+}
+
+// Ping checks whether the base URL points to a ChurchTools instance.
+func (c *Client) Ping() error {
+	req, err := http.NewRequest(http.MethodGet, c.apiURL("/whoami"), nil)
+	if err != nil {
+		return err
+	}
+	c.applyAuth(req)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("verbindung testen: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return errors.New("nicht authentifiziert – Login-Token oder Passwort prüfen")
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return &APIError{StatusCode: resp.StatusCode, Body: string(body)}
+	}
+	return nil
+}
+
+// PersonID returns the authenticated user's person ID after login.
+func (c *Client) PersonID() int {
+	return c.personID
+}
+
+func (c *Client) relogin() error {
+	if c.loginToken == "" {
+		return errors.New("session abgelaufen – bitte erneut mit login_token einloggen")
+	}
+	return c.authenticateWithToken()
+}
+
+func (c *Client) applyAuth(req *http.Request) {
+	if c.loginToken != "" {
+		req.Header.Set("Authorization", "Login "+c.loginToken)
+	}
+}
+
+func (c *Client) apiURL(path string) string {
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return c.baseURL + "/api" + path
+}
+
+func (c *Client) oldAPIURL() string {
+	return c.baseURL + "/?q=" + oldAPIModule
+}
+
+type apiEnvelope struct {
+	Data Person `json:"data"`
+}
+
+type legacyResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
+// Person is a ChurchTools person record used for invites and e-mail sync.
+type Person struct {
+	ID        int           `json:"id"`
+	FirstName string        `json:"firstName"`
+	LastName  string        `json:"lastName"`
+	Email     string        `json:"email"`
+	Emails    []PersonEmail `json:"emails"`
+}
+
+// PermissionHints documents required rights for invitations.
+var PermissionHints = []string{
+	"Personen zur Nutzung von ChurchTools einladen (Administration)",
+	"Gruppenmitglieder zu ChurchTools einladen (Personen, falls nur Gruppenleiter)",
+	"Personen bearbeiten (PATCH /persons/{id} für E-Mail-Sync aus CSV)",
+	"Login-Token lesen: GET /persons/{id}/logintoken (für setup token)",
+	"Personen lesen: GET /persons (für Validierung und export)",
+}
+
+// FindInvitePermissions searches permission payloads for invite-related entries.
+func FindInvitePermissions(perms map[string]any) []string {
+	var found []string
+	collectInviteStrings(perms, &found)
+	return found
+}
+
+func collectInviteStrings(value any, found *[]string) {
+	switch v := value.(type) {
+	case map[string]any:
+		for key, nested := range v {
+			lower := strings.ToLower(key)
+			if strings.Contains(lower, "invite") || strings.Contains(lower, "einlad") {
+				*found = append(*found, key)
+			}
+			collectInviteStrings(nested, found)
+		}
+	case []any:
+		for _, item := range v {
+			collectInviteStrings(item, found)
+		}
+	case string:
+		lower := strings.ToLower(v)
+		if strings.Contains(lower, "invite") || strings.Contains(lower, "einlad") {
+			*found = append(*found, v)
+		}
+	}
+}
