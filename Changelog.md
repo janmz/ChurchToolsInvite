@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.1.0.10] - 2026-06-16 21:46:08
+
+### Fixed
+
+- Release-Workflow: Artefakt-Upload nutzte ungültiges Glob `dist/*.{tar.gz,zip}`
+  (leere Release-Assets); explizite Pfade, Prüfung und `workflow_dispatch` zum
+  Nachbauen bestehender Tags
+
 ## [2.0.0.8] - 2026-06-16 21:37:33
 
 ### Added

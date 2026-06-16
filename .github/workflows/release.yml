@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to rebuild (e.g. v2.1.0)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -16,6 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - uses: actions/setup-go@v5
         with:
@@ -45,6 +53,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - uses: actions/setup-go@v5
         with:
@@ -54,49 +64,63 @@ jobs:
       - name: Resolve version
         id: version
         run: |
-          TAG="${GITHUB_REF#refs/tags/}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
           VERSION="${TAG#v}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "build_time=$(date -u '+%Y-%m-%d %H:%M:%S')" >> "$GITHUB_OUTPUT"
 
       - name: Build
+        id: build
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
         run: |
+          set -euo pipefail
           BINARY="churchtools-invite"
           if [ "$GOOS" = "windows" ]; then
             BINARY="${BINARY}.exe"
           fi
 
-          PACKAGE="churchtools-invite-${{ steps.version.outputs.tag }}-${GOOS}-${GOARCH}"
+          TAG="${{ steps.version.outputs.tag }}"
+          PACKAGE="churchtools-invite-${TAG}-${GOOS}-${GOARCH}"
           mkdir -p "dist/${PACKAGE}"
           LDFLAGS="-s -w -X main.Version=${{ steps.version.outputs.version }} -X 'main.BuildTime=${{ steps.version.outputs.build_time }}'"
 
           go build -ldflags "$LDFLAGS" -o "dist/${PACKAGE}/${BINARY}" .
-
           cp README.md LICENSE "dist/${PACKAGE}/"
 
-          cd dist
           if [ "$GOOS" = "windows" ]; then
-            zip -r "${PACKAGE}.zip" "${PACKAGE}"
+            ASSET="dist/${PACKAGE}.zip"
+            (cd dist && zip -r "${PACKAGE}.zip" "${PACKAGE}")
           else
-            tar -czf "${PACKAGE}.tar.gz" "${PACKAGE}"
+            ASSET="dist/${PACKAGE}.tar.gz"
+            (cd dist && tar -czf "${PACKAGE}.tar.gz" "${PACKAGE}")
           fi
+
+          test -f "$ASSET"
+          ls -lh "$ASSET"
+          echo "asset=$ASSET" >> "$GITHUB_OUTPUT"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: churchtools-invite-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: dist/*.{tar.gz,zip}
+          path: ${{ steps.build.outputs.asset }}
+          if-no-files-found: error
 
   release:
     needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -104,10 +128,34 @@ jobs:
           path: artifacts
           merge-multiple: true
 
+      - name: Prepare release assets
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' \) -exec cp {} release-assets/ \;
+          COUNT=$(find release-assets -type f | wc -l)
+          echo "Prepared $COUNT release asset(s):"
+          ls -lh release-assets
+          if [ "$COUNT" -lt 5 ]; then
+            echo "Expected at least 5 platform archives."
+            exit 1
+          fi
+
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "name=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.tag.outputs.name }}
           generate_release_notes: true
-          files: artifacts/*
+          fail_on_unmatched_files: true
+          files: release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
