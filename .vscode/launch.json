@@ -50,6 +50,8 @@
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },
+        {
+            "name": "ChurchTools-Invite: invite (example)",
             "type": "go",
             "request": "launch",
             "mode": "auto",

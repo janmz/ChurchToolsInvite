@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.0.0.8] - 2026-06-16 21:37:33
+
+### Added
+
+- GitHub Actions Release-Workflow: bei Tag `v*` werden Binaries für Linux,
+  macOS (amd64/arm64) und Windows gebaut und als Release-Assets veröffentlicht
+
 ## [2.0.0.6] - 2026-06-16 20:03:39
 
 ### Fixed

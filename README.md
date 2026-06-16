@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/🇺🇸-English-0077B6?style=for-the-badge" alt="English (current)">
 </p>
 
-**churchtools-invite** is a lightweight Go CLI for **mass ChurchTools system
+**Churchtools-invite** is a lightweight Go CLI for **mass ChurchTools system
 invitations** from a CSV file, including:
 
 - CSV import with person IDs and optional e-mail sync
@@ -42,6 +42,14 @@ invitations** from a CSV file, including:
 - Login token or username/password
 
 ## Installation
+
+### Binary download
+
+Pre-built binaries for Linux, macOS, and Windows:
+[Releases](https://github.com/janmz/ChurchToolsInvite/releases)
+
+Extract the archive and run `churchtools-invite` (`churchtools-invite.exe` on
+Windows).
 
 ### Go Install
 

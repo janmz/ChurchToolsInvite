@@ -11,7 +11,7 @@
   <a href="README.md"><img src="https://img.shields.io/badge/🇺🇸-English-555?style=for-the-badge" alt="English"></a>
 </p>
 
-**churchtools-invite** ist ein schlankes Go-CLI für **Masseneinladungen zu
+**Churchtools-invite** ist ein schlankes Go-CLI für **Masseneinladungen zu
 ChurchTools** aus einer CSV-Datei, u. a.:
 
 - CSV-Import mit Personen-IDs und optionalem E-Mail-Abgleich
@@ -22,7 +22,6 @@ ChurchTools** aus einer CSV-Datei, u. a.:
   erneuten Einladen)
 
 Dies soll den Prozess unterstützen, den jede Gemeinde durchmacht, wenn sie neu mit Churchtools beginnt. Meist werden Personendaten aus einem bestehenden Tool übernommen, aber alle müssen neu für Churchtools eingeladen werden, damit auch die datenschutzrechtlichlichen Einwilligungen für Chruchtools erfasst und dokumentiert werden können. Meist sind in den Altsystemen noch "Altlasten", wie verstorbene oder ausgeschiedene ehemalige Mitglieder. Oder es sind E-Mail-Adressen hinterlegt, die nicht mehr aktuell oder präferiert sind. Der letzte Umstand kann dazu führen, dass Personen doppelt angelegt werden und dann mühsam zusammengeführt werden müssen. Mit diesem Tool kann dies zu großen Teilen vermieden werden. Zuerst werden die Daten exportiert und auch eine nicht technick-affine Person kann dann die Liste bereinigen (löschen und E-Mails korrigieren). Diese Liste wird dann für die Generierungen der Einladungen verwendet, wobei bei Bedarf die E-Mail-Adressen vorher korrigiert werden. Dazu muss die Person, die das Tool bedient die entsprechenden Rechte haben, oder durch einfache Anfragen in die dazu notwendigen Gruppen kommen. Das Tool versucht bei fehlenden Rechten eine automatische Aufnahme in die notwendigen Gruppen, aber wenn dies scheitert müssen die Rechte manuell zugeordnet werden. Es ist auch möglich einen Testlauf zu unternehmen, der zeigt, wer eingeladen würde und welche Änderungen vorgenommen würden.
-
 
 ## Funktionen
 
@@ -49,6 +48,14 @@ Dies soll den Prozess unterstützen, den jede Gemeinde durchmacht, wenn sie neu 
 - Login-Token oder Benutzername/Passwort
 
 ## Installation
+
+### Binary herunterladen
+
+Fertige Builds für Linux, macOS und Windows:
+[Releases](https://github.com/janmz/ChurchToolsInvite/releases)
+
+Archiv entpacken, `churchtools-invite` (bzw. `churchtools-invite.exe` unter
+Windows) ausführen.
 
 ### Go Install
 
