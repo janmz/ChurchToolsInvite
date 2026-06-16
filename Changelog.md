@@ -2,7 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
-## [0.1.2] - 2026-06-16 15:29:17
+## [1.0.2.2] - 2026-06-16 15:36:03
+
+### Changed
+
+- Alle Go-Pakete auf `package ChurchToolsInvite` umbenannt (Einstiegspunkt
+  `cmd/masseneinladung/main.go` bleibt `package main`)
+- Import-Aliase für eindeutige Paketreferenzen beibehalten
+
+## [1.0.2.2] - 2026-06-16 15:29:17
 
 ### Added
 
@@ -10,7 +18,7 @@ All notable changes to this project are documented in this file.
   ChurchTools exportieren, optional gefiltert nach `--group-id`
 - UTF-8-BOM für Excel-kompatible CSV-Dateien
 
-## [0.1.1] - 2026-06-16 15:28:20
+## [1.0.1] - 2026-06-16 15:28:20
 
 ### Added
 
@@ -18,7 +26,7 @@ All notable changes to this project are documented in this file.
   ChurchTools-Adresse bleibt als zusätzliche erhalten (PATCH /persons/{id})
 - Flag `--no-sync-email` zum Deaktivieren des E-Mail-Syncs
 
-## [0.1.0] - 2026-06-16 15:22:22
+## [1.0.0] - 2026-06-16 15:22:22
 
 ### Added
 

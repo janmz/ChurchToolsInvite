@@ -7,7 +7,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/janmz/masseneinladung/internal/churchtools"
+	churchtools "github.com/janmz/churchtools-invite/internal/churchtools"
 )
 
 // ExportHeader is the canonical CSV header for invite/export files.

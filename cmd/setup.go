@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/janmz/masseneinladung/internal/churchtools"
-	"github.com/janmz/masseneinladung/internal/config"
+	churchtools "github.com/janmz/churchtools-invite/internal/churchtools"
+	config "github.com/janmz/churchtools-invite/internal/config"
 	"github.com/spf13/cobra"
 )
 

@@ -25,7 +25,7 @@ scripts/ci.ps1
 
 - Keep changes focused.
 - Add tests for new behaviour.
-- Update `Changelog.md` and bump `internal/version/version.go` (Build number).
+- Update `Changelog.md` and bump `internal/version/version.go`.
 
 ## Commit messages
 

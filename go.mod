@@ -1,4 +1,4 @@
-module github.com/janmz/masseneinladung
+module github.com/janmz/churchtools-invite
 
 go 1.22
 

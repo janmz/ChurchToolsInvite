@@ -25,7 +25,7 @@ scripts/ci.ps1
 
 - Änderungen fokussiert halten.
 - Tests für neues Verhalten ergänzen.
-- `Changelog.md` und `internal/version/version.go` (Buildnummer) aktualisieren.
+- `Changelog.md` und `internal/version/version.go` aktualisieren.
 
 ## Commit-Nachrichten
 

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/janmz/masseneinladung/internal/config"
+	config "github.com/janmz/churchtools-invite/internal/config"
 )
 
 func TestNormalizeBaseURL(t *testing.T) {

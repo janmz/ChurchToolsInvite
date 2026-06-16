@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/janmz/masseneinladung/internal/churchtools"
-	"github.com/janmz/masseneinladung/internal/csvfile"
+	churchtools "github.com/janmz/churchtools-invite/internal/churchtools"
+	csvfile "github.com/janmz/churchtools-invite/internal/csvfile"
 )
 
 func TestWriteToUsesCanonicalFormat(t *testing.T) {

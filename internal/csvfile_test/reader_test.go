@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/janmz/masseneinladung/internal/csvfile"
+	csvfile "github.com/janmz/churchtools-invite/internal/csvfile"
 )
 
 func TestReadCSV(t *testing.T) {

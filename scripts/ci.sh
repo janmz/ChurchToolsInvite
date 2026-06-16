@@ -4,6 +4,6 @@ set -euo pipefail
 go mod tidy
 go vet ./...
 go test ./...
-go build -o /dev/null ./cmd/masseneinladung
+go build -o /dev/null ./cmd/churchtools-invite
 
 echo "CI checks passed."

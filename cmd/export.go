@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/janmz/masseneinladung/internal/churchtools"
-	"github.com/janmz/masseneinladung/internal/config"
-	"github.com/janmz/masseneinladung/internal/csvfile"
+	churchtools "github.com/janmz/churchtools-invite/internal/churchtools"
+	config "github.com/janmz/churchtools-invite/internal/config"
+	csvfile "github.com/janmz/churchtools-invite/internal/csvfile"
+
 	"github.com/spf13/cobra"
 )
 

@@ -4,25 +4,25 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/janmz/masseneinladung/internal/version"
 	"github.com/spf13/cobra"
 )
 
 var configPath string
 
-// Execute runs the root command.
-func Execute() error {
-	return rootCmd.Execute()
-}
-
 var rootCmd = &cobra.Command{
-	Use:   "masseneinladung",
+	Use:   "Churchtools-Invite",
 	Short: "ChurchTools-Einladungen aus CSV versenden",
-	Long: `Masseneinladung liest Personen-IDs aus einer CSV-Datei und
+	Long: `ChurchTools-Invite liest Personen-IDs aus einer CSV-Datei und
 versendet über die ChurchTools-API Einladungs-E-Mails.
 
 Nutze 'setup' für Ersteinrichtung von URL, Login-Token und Berechtigungsprüfung.`,
-	Version: fmt.Sprintf("%s (build %d, %s)", version.Version, version.Build, version.BuildTime),
+	Version: "undefined",
+}
+
+// Execute runs the root command.
+func Execute(versionString string) error {
+	rootCmd.Version = versionString
+	return rootCmd.Execute()
 }
 
 func init() {
