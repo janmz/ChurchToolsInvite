@@ -1,10 +1,10 @@
 # ChurchTools_Invite
 
-[![Go Version](https://img.shields.io/github/go-mod/go-version/janmz/churchtools-invite)](https://golang.org)
-[![Release](https://img.shields.io/github/v/release/janmz/churchtools-invite)](https://github.com/janmz/churchtools-invite/releases)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/janmz/ChurchToolsInvite)](https://golang.org)
+[![Release](https://img.shields.io/github/v/release/janmz/ChurchToolsInvite)](https://github.com/janmz/ChurchToolsInvite/releases)
 [![Lizenz: MIT (modifiziert)](https://img.shields.io/badge/Lizenz-MIT--Modified-blue.svg)](LICENSE)
 [![Unterstützung: CFI-Kinderhilfe](https://img.shields.io/badge/Unterstützung-CFI--Kinderhilfe-0077B6?logo=heart)](https://cfi-kinderhilfe.de/jetzt-spenden?q=VAYAMASSEN)
-[![Build Status](https://github.com/janmz/churchtools-invite/actions/workflows/ci.yml/badge.svg)](https://github.com/janmz/churchtools-invite/actions/workflows/ci.yml)
+[![Build Status](https://github.com/janmz/ChurchToolsInvite/actions/workflows/ci.yml/badge.svg)](https://github.com/janmz/ChurchToolsInvite/actions/workflows/ci.yml)
 
 <p align="center">
   <img src="https://img.shields.io/badge/🇩🇪-Deutsch-0077B6?style=for-the-badge" alt="Deutsch (aktuell)">
@@ -20,6 +20,9 @@ ChurchTools** aus einer CSV-Datei, u. a.:
 - Setup, Dry-Run und Berechtigungshinweise
 - Bereits eingeladene Personen standardmäßig überspringen (`--reinvite` zum
   erneuten Einladen)
+
+Dies soll den Prozess unterstützen, den jede Gemeinde durchmacht, wenn sie neu mit Churchtools beginnt. Meist werden Personendaten aus einem bestehenden Tool übernommen, aber alle müssen neu für Churchtools eingeladen werden, damit auch die datenschutzrechtlichlichen Einwilligungen für Chruchtools erfasst und dokumentiert werden können. Meist sind in den Altsystemen noch "Altlasten", wie verstorbene oder ausgeschiedene ehemalige Mitglieder. Oder es sind E-Mail-Adressen hinterlegt, die nicht mehr aktuell oder präferiert sind. Der letzte Umstand kann dazu führen, dass Personen doppelt angelegt werden und dann mühsam zusammengeführt werden müssen. Mit diesem Tool kann dies zu großen Teilen vermieden werden. Zuerst werden die Daten exportiert und auch eine nicht technick-affine Person kann dann die Liste bereinigen (löschen und E-Mails korrigieren). Diese Liste wird dann für die Generierungen der Einladungen verwendet, wobei bei Bedarf die E-Mail-Adressen vorher korrigiert werden. Dazu muss die Person, die das Tool bedient die entsprechenden Rechte haben, oder durch einfache Anfragen in die dazu notwendigen Gruppen kommen. Das Tool versucht bei fehlenden Rechten eine automatische Aufnahme in die notwendigen Gruppen, aber wenn dies scheitert müssen die Rechte manuell zugeordnet werden. Es ist auch möglich einen Testlauf zu unternehmen, der zeigt, wer eingeladen würde und welche Änderungen vorgenommen würden.
+
 
 ## Funktionen
 
@@ -56,8 +59,8 @@ go install github.com/janmz/churchtools-invite@latest
 ### Aus Quellcode bauen
 
 ```bash
-git clone https://github.com/janmz/churchtools-invite.git
-cd churchtools-invite
+git clone https://github.com/janmz/ChurchToolsInvite.git
+cd ChurchToolsInvite
 go build -o churchtools-invite.exe .
 ```
 
@@ -71,9 +74,21 @@ Unter Linux/macOS heißt die Datei `churchtools-invite` (ohne `.exe`).
 copy config.example.json config.json
 # config.json anpassen
 
+
+```bash
 .\churchtools-invite.exe setup test
 .\churchtools-invite.exe export -o personen.csv
+```
+
+**Liste manuell korrigieren!**
+
+```bash
 .\churchtools-invite.exe invite -f personen.csv --dry-run
+```
+
+**Fehler in der Liste anpassen, evtl. Rechte "besorgen"**
+
+```bash
 .\churchtools-invite.exe invite -f personen.csv
 ```
 
@@ -144,7 +159,7 @@ Empfohlen vor dem ersten echten Versand. Alle Optionen von `invite`
 | `setup token` | Login-Token anzeigen |
 | `setup permissions` | Einladungs-Berechtigungen prüfen |
 | `whoami` | Angemeldeten Benutzer anzeigen |
-| `export -o DATEI` | Personenliste als Einladungs-CSV exportieren |
+| `export -o DATEI` | Personenliste als Einladungs-CSV exportieren, Default `personen.csv` |
 | `export -i` | Standort und Filter interaktiv wählen |
 | `export --campus-id ID` | Nur Personen dieses Standorts |
 | `export --all-campuses` | Keinen Standort-Filter (Standard: Standort des Nutzers) |
@@ -174,20 +189,20 @@ Beiträge sind willkommen! Bitte vor einem Pull Request
 Diese Software steht unter einer modifizierten MIT-Lizenz (siehe [LICENSE](LICENSE)).
 Du darfst den Code frei verwenden, anpassen und weitergeben, **solange** du
 den ursprünglichen Autor **Jan Neuhaus** nennst und einen Link auf das
-Original-Repository beibehältst: `https://github.com/janmz/churchtools-invite`.
+Original-Repository beibehältst: `https://github.com/janmz/ChurchToolsInvite`.
 
 **Es wird keine Gewährleistung übernommen.**
 
 ## Unterstützung
 
 Wenn dir das Projekt nützt, unterstütze bitte die **CFI-Kinderhilfe**:
-[Spendenseite](https://cfi-kinderhilfe.de/jetzt-spenden?q=VAYAMASSEN)
+[Spendenseite](https://cfi-kinderhilfe.de/jetzt-spenden?q=VAYACTINVITE)
 (Spenden gehen an die CFI-Kinderhilfe, nicht an den Autor.)
 
 ## Kontakt
 
 **Autor**: Jan Neuhaus – [VAYA Consulting](https://vaya-consulting.de/development?q=GITHUB)
-**Repository**: [https://github.com/janmz/churchtools-invite](https://github.com/janmz/churchtools-invite)
+**Repository**: [https://github.com/janmz/ChurchToolsInvite](https://github.com/janmz/ChurchToolsInvite)
 
 ## Changelog
 

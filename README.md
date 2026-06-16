@@ -1,10 +1,10 @@
 # ChurchTools_Invite
 
-[![Go Version](https://img.shields.io/github/go-mod/go-version/janmz/churchtools-invite)](https://golang.org)
-[![Release](https://img.shields.io/github/v/release/janmz/churchtools-invite)](https://github.com/janmz/churchtools-invite/releases)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/janmz/ChurchToolsInvite)](https://golang.org)
+[![Release](https://img.shields.io/github/v/release/janmz/ChurchToolsInvite)](https://github.com/janmz/ChurchToolsInvite/releases)
 [![License: MIT (Modified)](https://img.shields.io/badge/License-MIT--Modified-blue.svg)](LICENSE)
 [![Support: CFI-Kinderhilfe](https://img.shields.io/badge/Support-CFI--Kinderhilfe-0077B6?logo=heart)](https://cfi-kinderhilfe.de/jetzt-spenden?q=VAYAMASSEN)
-[![Build Status](https://github.com/janmz/churchtools-invite/actions/workflows/ci.yml/badge.svg)](https://github.com/janmz/churchtools-invite/actions/workflows/ci.yml)
+[![Build Status](https://github.com/janmz/ChurchToolsInvite/actions/workflows/ci.yml/badge.svg)](https://github.com/janmz/ChurchToolsInvite/actions/workflows/ci.yml)
 
 <p align="center">
   <a href="README.de.md"><img src="https://img.shields.io/badge/🇩🇪-Deutsch-555?style=for-the-badge" alt="Deutsch"></a>
@@ -52,8 +52,8 @@ go install github.com/janmz/churchtools-invite@latest
 ### Build from Source
 
 ```bash
-git clone https://github.com/janmz/churchtools-invite.git
-cd churchtools-invite
+git clone https://github.com/janmz/ChurchToolsInvite.git
+cd ChurchToolsInvite
 go build -o churchtools-invite .
 ```
 
@@ -169,7 +169,7 @@ before creating a pull request.
 This software is under a modified MIT license (see [LICENSE](LICENSE)).
 You may freely use, modify, and distribute the code, **provided** you credit the
 original author **Jan Neuhaus** and maintain a link to the original repository:
-`https://github.com/janmz/churchtools-invite`.
+`https://github.com/janmz/ChurchToolsInvite`.
 
 **No warranty** is provided.
 
@@ -182,7 +182,7 @@ If you find this project helpful, please support **CFI-Kinderhilfe**:
 ## Contact
 
 **Author**: Jan Neuhaus – [VAYA Consulting](https://vaya-consulting.de/development?q=GITHUB)
-**Repository**: [https://github.com/janmz/churchtools-invite](https://github.com/janmz/churchtools-invite)
+**Repository**: [https://github.com/janmz/ChurchToolsInvite](https://github.com/janmz/ChurchToolsInvite)
 
 ## Changelog
 

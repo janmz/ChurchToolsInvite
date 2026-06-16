@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.0.0.6] - 2026-06-16 20:03:39
+
+### Fixed
+
+- CI: `scripts/ci.sh` baut wieder das Root-Modul (`.`) statt veralteten Pfad
+  `./cmd/churchtools-invite`
+- README-Badges und Repository-Links auf `janmz/ChurchToolsInvite` korrigiert
+  (Go-Version-, Release- und Build-Status-Badge)
+
 ## [1.0.6.4] - 2026-06-16 19:43:26
 
 ### Removed
