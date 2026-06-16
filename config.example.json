@@ -1,5 +1,9 @@
 {
   "base_url": "https://meine-gemeinde.church.tools",
   "login_token": "HIER_LOGIN_TOKEN_EINTRAGEN",
-  "delay_ms": 500
+  "delay_ms": 500,
+  "permission_groups": {
+    "edit_persons": "Personen bearbeiten",
+    "export_persons": "Personen exportieren"
+  }
 }

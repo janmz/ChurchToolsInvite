@@ -20,6 +20,7 @@ func TestLoginAndInvite(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"data": map[string]any{
 				"id":        1,
+				"campusId":  3,
 				"firstName": "Admin",
 				"lastName":  "User",
 				"email":     "admin@example.org",
@@ -58,33 +59,11 @@ func TestLoginAndInvite(t *testing.T) {
 				return
 			}
 			w.WriteHeader(http.StatusNoContent)
+		case r.Method == http.MethodPost && r.URL.Path == "/api/persons/99/invite":
+			w.WriteHeader(http.StatusNoContent)
 		default:
 			http.Error(w, "method", http.StatusMethodNotAllowed)
 		}
-	})
-
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("q") != "churchdb/ajax" {
-			http.NotFound(w, r)
-			return
-		}
-		if r.Method != http.MethodPost {
-			http.Error(w, "method", http.StatusMethodNotAllowed)
-			return
-		}
-		if r.Header.Get("CSRF-Token") != "csrf-test" {
-			http.Error(w, "csrf", http.StatusForbidden)
-			return
-		}
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, "form", http.StatusBadRequest)
-			return
-		}
-		if r.Form.Get("func") != "invitePersonToSystem" || r.Form.Get("id") != "99" {
-			http.Error(w, "payload", http.StatusBadRequest)
-			return
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"status": "success", "data": true})
 	})
 
 	server := httptest.NewServer(mux)
@@ -94,6 +73,15 @@ func TestLoginAndInvite(t *testing.T) {
 	if err := client.Login(); err != nil {
 		t.Fatalf("Login: %v", err)
 	}
+
+	campusID, err := client.CurrentUserCampusID()
+	if err != nil {
+		t.Fatalf("CurrentUserCampusID: %v", err)
+	}
+	if campusID != 3 {
+		t.Fatalf("campusID = %d", campusID)
+	}
+
 	if err := client.InvitePerson(99); err != nil {
 		t.Fatalf("InvitePerson: %v", err)
 	}
@@ -161,5 +149,14 @@ func TestFindInvitePermissions(t *testing.T) {
 	found := churchtools.FindInvitePermissions(perms)
 	if len(found) < 2 {
 		t.Fatalf("expected matches, got %v", found)
+	}
+}
+
+func TestIsForbidden(t *testing.T) {
+	if !churchtools.IsForbidden(&churchtools.APIError{StatusCode: 403}) {
+		t.Fatal("expected forbidden")
+	}
+	if churchtools.IsForbidden(&churchtools.APIError{StatusCode: 404}) {
+		t.Fatal("expected not forbidden")
 	}
 }

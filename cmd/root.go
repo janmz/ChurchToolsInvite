@@ -29,7 +29,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "config.json", "Pfad zur Konfigurationsdatei")
 
 	rootCmd.AddCommand(inviteCmd)
-	rootCmd.AddCommand(validateCmd)
 	rootCmd.AddCommand(whoamiCmd)
 	rootCmd.AddCommand(setupCmd)
 }

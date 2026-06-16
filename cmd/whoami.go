@@ -35,6 +35,14 @@ func runWhoAmI() error {
 	fmt.Printf("Person-ID: %d\n", user.ID)
 	fmt.Printf("Name:      %s %s\n", user.FirstName, user.LastName)
 	fmt.Printf("E-Mail:    %s\n", user.Email)
+	if user.CampusID > 0 {
+		name := campusDisplayName(client, user.CampusID)
+		if name != "" {
+			fmt.Printf("Standort:  %s (ID %d)\n", name, user.CampusID)
+		} else {
+			fmt.Printf("Standort:  ID %d\n", user.CampusID)
+		}
+	}
 	fmt.Printf("Instanz:   %s\n", cfg.BaseURL)
 	return nil
 }

@@ -8,15 +8,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/cookiejar"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
-)
-
-const (
-	oldAPIModule = "churchdb/ajax"
-	inviteFunc   = "invitePersonToSystem"
 )
 
 // APIError describes a failed ChurchTools response.
@@ -285,63 +279,6 @@ func (c *Client) PersonByID(id int) (Person, error) {
 	return envelope.Data, nil
 }
 
-// InvitePerson sends the ChurchTools system invitation e-mail.
-func (c *Client) InvitePerson(personID int) error {
-	if c.csrfToken == "" {
-		token, err := c.fetchCSRFToken()
-		if err != nil {
-			return err
-		}
-		c.csrfToken = token
-	}
-
-	form := url.Values{}
-	form.Set("func", inviteFunc)
-	form.Set("id", strconv.Itoa(personID))
-
-	req, err := http.NewRequest(http.MethodPost, c.oldAPIURL(), strings.NewReader(form.Encode()))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("CSRF-Token", c.csrfToken)
-	c.applyAuth(req)
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return fmt.Errorf("einladung senden: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode == http.StatusUnauthorized {
-		if err := c.relogin(); err != nil {
-			return err
-		}
-		return c.InvitePerson(personID)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return &APIError{
-			StatusCode: resp.StatusCode,
-			Message:    "Legacy-API-Aufruf fehlgeschlagen",
-			Body:       string(body),
-		}
-	}
-
-	var legacy legacyResponse
-	if err := json.Unmarshal(body, &legacy); err != nil {
-		return fmt.Errorf("einladungsantwort parsen: %w (body: %s)", err, string(body))
-	}
-	if legacy.Status != "success" {
-		msg := legacy.Message
-		if msg == "" {
-			msg = string(body)
-		}
-		return &APIError{StatusCode: resp.StatusCode, Message: msg, Body: string(body)}
-	}
-	return nil
-}
-
 // GlobalPermissions returns permission metadata for the current user.
 func (c *Client) GlobalPermissions() (map[string]any, error) {
 	req, err := http.NewRequest(http.MethodGet, c.apiURL("/permissions/global"), nil)
@@ -425,33 +362,38 @@ func (c *Client) apiURL(path string) string {
 	return c.baseURL + "/api" + path
 }
 
-func (c *Client) oldAPIURL() string {
-	return c.baseURL + "/?q=" + oldAPIModule
-}
-
 type apiEnvelope struct {
 	Data Person `json:"data"`
 }
 
-type legacyResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-}
-
 // Person is a ChurchTools person record used for invites and e-mail sync.
 type Person struct {
-	ID        int           `json:"id"`
-	FirstName string        `json:"firstName"`
-	LastName  string        `json:"lastName"`
-	Email     string        `json:"email"`
-	Emails    []PersonEmail `json:"emails"`
+	ID                     int                     `json:"id"`
+	CampusID               int                     `json:"campusId"`
+	FirstName              string                  `json:"firstName"`
+	LastName               string                  `json:"lastName"`
+	Email                  string                  `json:"email"`
+	Emails                 []PersonEmail           `json:"emails"`
+	CMSUserID              string                  `json:"cmsUserId"`
+	IsSystemUser           *bool                   `json:"isSystemUser"`
+	AcceptedSecurity       *string                 `json:"acceptedsecurity"`
+	PrivacyPolicyAgreement *PrivacyPolicyAgreement `json:"privacyPolicyAgreement"`
+}
+
+// CurrentUserCampusID returns the campus of the authenticated user.
+func (c *Client) CurrentUserCampusID() (int, error) {
+	user, err := c.WhoAmI()
+	if err != nil {
+		return 0, err
+	}
+	return user.CampusID, nil
 }
 
 // PermissionHints documents required rights for invitations.
 var PermissionHints = []string{
-	"Personen zur Nutzung von ChurchTools einladen (Administration)",
+	"Personen zur Nutzung von ChurchTools einladen: POST /persons/{id}/invite",
 	"Gruppenmitglieder zu ChurchTools einladen (Personen, falls nur Gruppenleiter)",
-	"Personen bearbeiten (PATCH /persons/{id} für E-Mail-Sync aus CSV)",
+	"Personen bearbeiten (PATCH /persons/{id} für E-Mail-Sync aus CSV, optional)",
 	"Login-Token lesen: GET /persons/{id}/logintoken (für setup token)",
 	"Personen lesen: GET /persons (für Validierung und export)",
 }

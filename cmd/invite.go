@@ -13,39 +13,33 @@ import (
 )
 
 var (
-	csvPath     string
-	dryRun      bool
-	delayMS     int
-	noSyncEmail bool
+	csvPath               string
+	dryRun                bool
+	delayMS               int
+	noSyncEmail           bool
+	skipPermissionRequest bool
+	reinvite              bool
 )
 
 var inviteCmd = &cobra.Command{
 	Use:   "invite",
 	Short: "Einladungen für alle Personen in der CSV senden",
 	Run: func(cmd *cobra.Command, args []string) {
-		exitOnError(runInvite(false))
-	},
-}
-
-var validateCmd = &cobra.Command{
-	Use:   "validate",
-	Short: "CSV prüfen ohne Einladungen zu senden",
-	Run: func(cmd *cobra.Command, args []string) {
-		exitOnError(runInvite(true))
+		exitOnError(runInvite())
 	},
 }
 
 func init() {
-	for _, command := range []*cobra.Command{inviteCmd, validateCmd} {
-		command.Flags().StringVarP(&csvPath, "csv", "f", "", "Pfad zur CSV-Datei (Pflicht)")
-		command.Flags().IntVar(&delayMS, "delay-ms", 0, "Pause zwischen Einladungen in Millisekunden (0 = config.delay_ms)")
-		_ = command.MarkFlagRequired("csv")
-	}
-	inviteCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Nur simulieren, keine E-Mails senden")
+	inviteCmd.Flags().StringVarP(&csvPath, "csv", "f", "", "Pfad zur CSV-Datei (Pflicht)")
+	inviteCmd.Flags().IntVar(&delayMS, "delay-ms", 0, "Pause zwischen Einladungen in Millisekunden (0 = config.delay_ms)")
+	inviteCmd.Flags().BoolVar(&skipPermissionRequest, "skip-permission-request", false, "Keine Gruppenmitgliedschaft für fehlende Berechtigungen beantragen")
+	inviteCmd.Flags().BoolVar(&reinvite, "reinvite", false, "Bereits eingeladene Personen erneut einladen (Standard: überspringen)")
+	inviteCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Prüfen/simulieren ohne Einladungen zu senden oder ChurchTools zu ändern")
 	inviteCmd.Flags().BoolVar(&noSyncEmail, "no-sync-email", false, "E-Mail aus CSV nicht nach ChurchTools übernehmen")
+	_ = inviteCmd.MarkFlagRequired("csv")
 }
 
-func runInvite(validateOnly bool) error {
+func runInvite() error {
 	if csvPath == "" {
 		return fmt.Errorf("--csv ist erforderlich")
 	}
@@ -65,21 +59,25 @@ func runInvite(validateOnly bool) error {
 		return err
 	}
 
+	if !skipPermissionRequest {
+		if err := ensureInvitePermissions(client, cfg, !noSyncEmail); err != nil {
+			return err
+		}
+	}
+
 	delay := time.Duration(cfg.DelayMS) * time.Millisecond
 	if delayMS > 0 {
 		delay = time.Duration(delayMS) * time.Millisecond
 	}
 
 	opts := invite.Options{
-		DryRun:       dryRun,
-		Delay:        delay,
-		ValidateOnly: validateOnly,
-		SyncEmail:    !noSyncEmail,
+		DryRun:    dryRun,
+		Delay:     delay,
+		SyncEmail: !noSyncEmail,
+		Reinvite:  reinvite,
 	}
 
-	if validateOnly {
-		fmt.Printf("Validiere %d Personen …\n", len(entries))
-	} else if dryRun {
+	if dryRun {
 		fmt.Printf("Dry-Run für %d Personen …\n", len(entries))
 	} else {
 		fmt.Printf("Sende Einladungen an %d Personen …\n", len(entries))

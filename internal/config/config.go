@@ -13,11 +13,34 @@ const DefaultConfigName = "config.json"
 
 // Config holds ChurchTools connection settings.
 type Config struct {
-	BaseURL    string `json:"base_url"`
-	LoginToken string `json:"login_token,omitempty"`
-	Username   string `json:"username,omitempty"`
-	Password   string `json:"password,omitempty"`
-	DelayMS    int    `json:"delay_ms,omitempty"`
+	BaseURL          string           `json:"base_url"`
+	LoginToken       string           `json:"login_token,omitempty"`
+	Username         string           `json:"username,omitempty"`
+	Password         string           `json:"password,omitempty"`
+	DelayMS          int              `json:"delay_ms,omitempty"`
+	PermissionGroups PermissionGroups `json:"permission_groups,omitempty"`
+}
+
+// PermissionGroups names ChurchTools groups used to request missing rights.
+type PermissionGroups struct {
+	EditPersons   string `json:"edit_persons,omitempty"`
+	ExportPersons string `json:"export_persons,omitempty"`
+}
+
+// EditPersonsGroupName returns the group for write access.
+func (c Config) EditPersonsGroupName() string {
+	if name := strings.TrimSpace(c.PermissionGroups.EditPersons); name != "" {
+		return name
+	}
+	return "Personen bearbeiten"
+}
+
+// ExportPersonsGroupName returns the group for export permission.
+func (c Config) ExportPersonsGroupName() string {
+	if name := strings.TrimSpace(c.PermissionGroups.ExportPersons); name != "" {
+		return name
+	}
+	return "Personen exportieren"
 }
 
 // Load reads configuration from a JSON file and applies environment overrides.

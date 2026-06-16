@@ -13,15 +13,16 @@ import (
 type Result struct {
 	Entry   csvfile.Entry
 	Success bool
+	Skipped bool
 	Message string
 }
 
 // Options controls batch invitation behaviour.
 type Options struct {
-	DryRun       bool
-	Delay        time.Duration
-	ValidateOnly bool
-	SyncEmail    bool
+	DryRun    bool
+	Delay     time.Duration
+	SyncEmail bool
+	Reinvite  bool
 }
 
 // Run sends invitations for all CSV entries.
@@ -43,6 +44,14 @@ func Run(client *churchtools.Client, entries []csvfile.Entry, opts Options) ([]R
 			continue
 		}
 
+		if !opts.Reinvite && person.HasChurchToolsAccount() {
+			result.Success = true
+			result.Skipped = true
+			result.Message = fmt.Sprintf("übersprungen: %s (%s)", label, person.AccountStatusLabel())
+			results = append(results, result)
+			continue
+		}
+
 		inviteEmail, emailNote, err := resolveInviteEmail(client, person, entry, opts)
 		if err != nil {
 			result.Message = err.Error()
@@ -50,22 +59,15 @@ func Run(client *churchtools.Client, entries []csvfile.Entry, opts Options) ([]R
 			continue
 		}
 
-		if opts.ValidateOnly || opts.DryRun {
+		if opts.DryRun {
 			if inviteEmail == "" {
 				result.Message = "person hat keine e-mail-adresse (weder csv noch churchtools)"
 				results = append(results, result)
 				continue
 			}
 
-			if opts.DryRun {
-				result.Success = true
-				result.Message = fmt.Sprintf("dry-run: würde %s (%s) einladen%s", label, inviteEmail, emailNote)
-				results = append(results, result)
-				continue
-			}
-
 			result.Success = true
-			result.Message = fmt.Sprintf("ok: %s (%s)%s", label, inviteEmail, emailNote)
+			result.Message = fmt.Sprintf("dry-run: würde %s (%s) einladen%s", label, inviteEmail, emailNote)
 			results = append(results, result)
 			continue
 		}
@@ -122,12 +124,27 @@ func resolveInviteEmail(
 		return inviteEmail, note, nil
 	}
 
-	if opts.DryRun || opts.ValidateOnly {
+	if opts.DryRun {
 		note = "; " + plan.Detail
 		return plan.Primary, note, nil
 	}
 
 	if err := client.UpdatePersonEmail(entry.PersonID, plan); err != nil {
+		if churchtools.IsForbidden(err) {
+			note = "; e-mail-sync übersprungen (keine berechtigung personen bearbeiten)"
+			if inviteEmail == "" {
+				inviteEmail = csvEmail
+			}
+			if inviteEmail == "" {
+				return "", "", fmt.Errorf(
+					"e-mail-sync nicht möglich und person hat keine e-mail in churchtools",
+				)
+			}
+			if csvEmail != "" && !strings.EqualFold(csvEmail, inviteEmail) {
+				note += fmt.Sprintf("; einladung an churchtools-adresse %s (csv: %s)", inviteEmail, csvEmail)
+			}
+			return inviteEmail, note, nil
+		}
 		return "", "", fmt.Errorf("e-mail-sync fehlgeschlagen: %w", err)
 	}
 
@@ -146,16 +163,28 @@ func formatLabel(entry csvfile.Entry) string {
 // PrintSummary writes a human-readable report to stdout via fmt.
 func PrintSummary(results []Result) {
 	success := 0
+	skipped := 0
 	for _, result := range results {
 		if result.Success {
 			success++
 		}
+		if result.Skipped {
+			skipped++
+		}
 	}
 
-	fmt.Printf("\nZusammenfassung: %d/%d erfolgreich\n", success, len(results))
+	fmt.Printf("\nZusammenfassung: %d/%d erfolgreich", success, len(results))
+	if skipped > 0 {
+		fmt.Printf(" (%d übersprungen)", skipped)
+	}
+	fmt.Println()
+
 	for _, result := range results {
 		status := "FEHLER"
-		if result.Success {
+		switch {
+		case result.Skipped:
+			status = "ÜBERSPRUNGEN"
+		case result.Success:
 			status = "OK"
 		}
 		fmt.Printf("[%s] Zeile %d, ID %d: %s\n",

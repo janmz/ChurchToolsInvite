@@ -3,8 +3,6 @@ package churchtools
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
 	"strconv"
 )
@@ -13,8 +11,10 @@ const defaultPersonPageSize = 100
 
 // PersonListOptions filters persons loaded from ChurchTools.
 type PersonListOptions struct {
-	IDs     []int
-	GroupID int
+	IDs      []int
+	GroupID  int
+	CampusID int
+	StatusID int
 }
 
 // ListPersons returns persons for export or batch processing.
@@ -31,41 +31,51 @@ func (c *Client) ListPersons(opts PersonListOptions) ([]Person, error) {
 	}
 
 	if len(opts.IDs) > 0 {
-		return c.listPersonsByIDs(opts.IDs)
+		return c.listPersonsByIDs(opts)
 	}
 
-	return c.listAllPersons()
+	return c.listAllPersons(opts)
 }
 
-func (c *Client) listAllPersons() ([]Person, error) {
+func (c *Client) buildPersonQuery(opts PersonListOptions, limit int) url.Values {
 	query := url.Values{}
-	query.Set("limit", strconv.Itoa(defaultPersonPageSize))
+	query.Set("limit", strconv.Itoa(limit))
+	if opts.CampusID > 0 {
+		query.Add("campus_ids[]", strconv.Itoa(opts.CampusID))
+	}
+	if opts.StatusID > 0 {
+		query.Add("status_ids[]", strconv.Itoa(opts.StatusID))
+	}
+	return query
+}
 
-	items, err := c.fetchPersonPages("/persons", query)
+func (c *Client) listAllPersons(opts PersonListOptions) ([]Person, error) {
+	query := c.buildPersonQuery(opts, defaultPersonPageSize)
+
+	items, err := c.fetchAPIPages("/persons", query)
 	if err != nil {
 		return nil, err
 	}
 	return decodePersonList(items)
 }
 
-func (c *Client) listPersonsByIDs(ids []int) ([]Person, error) {
+func (c *Client) listPersonsByIDs(opts PersonListOptions) ([]Person, error) {
 	const chunkSize = 50
-	persons := make([]Person, 0, len(ids))
+	persons := make([]Person, 0, len(opts.IDs))
 
-	for start := 0; start < len(ids); start += chunkSize {
+	for start := 0; start < len(opts.IDs); start += chunkSize {
 		end := start + chunkSize
-		if end > len(ids) {
-			end = len(ids)
+		if end > len(opts.IDs) {
+			end = len(opts.IDs)
 		}
-		chunk := ids[start:end]
+		chunk := opts.IDs[start:end]
 
-		query := url.Values{}
-		query.Set("limit", strconv.Itoa(len(chunk)))
+		query := c.buildPersonQuery(opts, len(chunk))
 		for _, id := range chunk {
 			query.Add("ids[]", strconv.Itoa(id))
 		}
 
-		items, err := c.fetchPersonPages("/persons", query)
+		items, err := c.fetchAPIPages("/persons", query)
 		if err != nil {
 			return nil, err
 		}
@@ -77,12 +87,12 @@ func (c *Client) listPersonsByIDs(ids []int) ([]Person, error) {
 		persons = append(persons, chunkPersons...)
 	}
 
-	return sortPersonsByIDs(persons, ids), nil
+	return sortPersonsByIDs(persons, opts.IDs), nil
 }
 
 func (c *Client) groupMemberPersonIDs(groupID int) ([]int, error) {
 	path := "/groups/" + strconv.Itoa(groupID) + "/members"
-	items, err := c.fetchPersonPages(path, nil)
+	items, err := c.fetchAPIPages(path, nil)
 	if err != nil {
 		return nil, fmt.Errorf("gruppenmitglieder laden: %w", err)
 	}
@@ -101,100 +111,6 @@ func (c *Client) groupMemberPersonIDs(groupID int) ([]int, error) {
 		ids = append(ids, id)
 	}
 	return ids, nil
-}
-
-func (c *Client) fetchPersonPages(path string, query url.Values) ([]json.RawMessage, error) {
-	if query == nil {
-		query = url.Values{}
-	}
-	if query.Get("limit") == "" {
-		query.Set("limit", strconv.Itoa(defaultPersonPageSize))
-	}
-
-	page := 1
-	var all []json.RawMessage
-
-	for {
-		query.Set("page", strconv.Itoa(page))
-		body, err := c.getAPI(path, query)
-		if err != nil {
-			return nil, err
-		}
-
-		var envelope struct {
-			Data json.RawMessage `json:"data"`
-			Meta struct {
-				Pagination *struct {
-					Current  int `json:"current"`
-					LastPage int `json:"lastPage"`
-				} `json:"pagination"`
-			} `json:"meta"`
-		}
-		if err := json.Unmarshal(body, &envelope); err != nil {
-			return nil, fmt.Errorf("antwort parsen: %w", err)
-		}
-
-		items, err := rawItems(envelope.Data)
-		if err != nil {
-			return nil, err
-		}
-		all = append(all, items...)
-
-		if envelope.Meta.Pagination == nil || page >= envelope.Meta.Pagination.LastPage {
-			break
-		}
-		page++
-	}
-
-	return all, nil
-}
-
-func (c *Client) getAPI(path string, query url.Values) ([]byte, error) {
-	reqURL := c.apiURL(path)
-	if len(query) > 0 {
-		reqURL += "?" + query.Encode()
-	}
-
-	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	c.applyAuth(req)
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("api GET %s: %w", path, err)
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode == http.StatusUnauthorized {
-		if err := c.relogin(); err != nil {
-			return nil, err
-		}
-		return c.getAPI(path, query)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, &APIError{
-			StatusCode: resp.StatusCode,
-			Message:    "daten konnten nicht geladen werden",
-			Body:       string(body),
-		}
-	}
-	return body, nil
-}
-
-func rawItems(data json.RawMessage) ([]json.RawMessage, error) {
-	if len(data) == 0 || string(data) == "null" {
-		return nil, nil
-	}
-
-	var items []json.RawMessage
-	if err := json.Unmarshal(data, &items); err == nil {
-		return items, nil
-	}
-
-	return []json.RawMessage{data}, nil
 }
 
 func decodePersonList(items []json.RawMessage) ([]Person, error) {

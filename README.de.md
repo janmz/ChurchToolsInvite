@@ -1,36 +1,83 @@
-# Masseneinladung
+# ChurchTools_Invite
 
-Versendet ChurchTools-Systemeinladungen an Personen aus einer CSV-Liste.
+[![Go Version](https://img.shields.io/github/go-mod/go-version/janmz/churchtools-invite)](https://golang.org)
+[![Release](https://img.shields.io/github/v/release/janmz/churchtools-invite)](https://github.com/janmz/churchtools-invite/releases)
+[![Lizenz: MIT (modifiziert)](https://img.shields.io/badge/Lizenz-MIT--Modified-blue.svg)](LICENSE)
+[![Unterstützung: CFI-Kinderhilfe](https://img.shields.io/badge/Unterstützung-CFI--Kinderhilfe-0077B6?logo=heart)](https://cfi-kinderhilfe.de/jetzt-spenden?q=VAYAMASSEN)
+[![Build Status](https://github.com/janmz/churchtools-invite/actions/workflows/ci.yml/badge.svg)](https://github.com/janmz/churchtools-invite/actions/workflows/ci.yml)
+
+<p align="center">
+  <img src="https://img.shields.io/badge/🇩🇪-Deutsch-0077B6?style=for-the-badge" alt="Deutsch (aktuell)">
+  <a href="README.md"><img src="https://img.shields.io/badge/🇺🇸-English-555?style=for-the-badge" alt="English"></a>
+</p>
+
+**churchtools-invite** ist ein schlankes Go-CLI für **Masseneinladungen zu
+ChurchTools** aus einer CSV-Datei, u. a.:
+
+- CSV-Import mit Personen-IDs und optionalem E-Mail-Abgleich
+- Einladungen über die REST-API (`POST /persons/{id}/invite`)
+- Personenexport mit Standort-, Status- und Gruppenfiltern
+- Setup, Dry-Run und Berechtigungshinweise
+- Bereits eingeladene Personen standardmäßig überspringen (`--reinvite` zum
+  erneuten Einladen)
 
 ## Funktionen
 
 - CSV einlesen mit Personen-IDs (`id`, `person_id`, `ct_id`, …)
-- Einladungs-E-Mails über die ChurchTools-API senden
-  (`invitePersonToSystem`)
+- Einladungs-E-Mails über die ChurchTools-REST-API senden
+- Personen exportieren (Standort, Status, Gruppe; interaktive Auswahl)
 - Setup-Befehle für URL, Login-Token, Verbindungstest und Berechtigungshinweise
-- Dry-Run und Validierung vor dem Versand
-- E-Mail aus CSV/Excel übernehmen: abweichende Adresse wird primär gesetzt,
+- Dry-Run zur Prüfung von CSV und Personendaten vor dem Versand
+- E-Mail aus CSV übernehmen: abweichende Adresse wird primär gesetzt,
   bisherige ChurchTools-Adresse bleibt als zusätzliche erhalten
+- Bereits eingeladene Personen standardmäßig überspringen; mit `--reinvite`
+  erneut einladen
+- Automatische Gruppenanfrage bei fehlenden Rechten für Export und
+  E-Mail-Sync
 
 ## Voraussetzungen
 
-- Go 1.22+
-- ChurchTools-Konto mit Berechtigung **Personen zur Nutzung von ChurchTools einladen**
+- Go 1.22+ (zum Bauen aus dem Quellcode)
+- ChurchTools-Konto mit Berechtigung **Personen zur Nutzung von ChurchTools
+  einladen**
+- Für Export: Berechtigung **export data** (Gruppe „Personen exportieren“)
+- Für E-Mail-Sync beim Einladen: Berechtigung **write access** (Gruppe
+  „Personen bearbeiten“)
 - Login-Token oder Benutzername/Passwort
 
-## Schnellstart
+## Installation
+
+### Go Install
 
 ```bash
-go build -o masseneinladung.exe ./cmd/masseneinladung
+go install github.com/janmz/churchtools-invite@latest
+```
 
+### Aus Quellcode bauen
+
+```bash
+git clone https://github.com/janmz/churchtools-invite.git
+cd churchtools-invite
+go build -o churchtools-invite.exe .
+```
+
+Unter Linux/macOS heißt die Datei `churchtools-invite` (ohne `.exe`).
+
+## Verwendung
+
+### Schnellstart
+
+```bash
 copy config.example.json config.json
 # config.json anpassen
 
-go run ./cmd/masseneinladung setup test
-go run ./cmd/masseneinladung export --output personen.csv
-go run ./cmd/masseneinladung validate --csv personen.csv
-go run ./cmd/masseneinladung invite --csv personen.csv
+.\churchtools-invite.exe setup test
+.\churchtools-invite.exe export -o personen.csv
+.\churchtools-invite.exe invite -f personen.csv --dry-run
+.\churchtools-invite.exe invite -f personen.csv
 ```
+
+Globale Option: `-c config.json` für einen anderen Konfigurationspfad.
 
 ## Konfiguration
 
@@ -41,19 +88,22 @@ Kopiere `config.example.json` nach `config.json` oder nutze Umgebungsvariablen:
 | `CT_BASE_URL` | URL der ChurchTools-Instanz |
 | `CT_LOGIN_TOKEN` | API-Login-Token |
 | `CT_USERNAME` / `CT_PASSWORD` | Alternative zum Token |
+| `delay_ms` | Pause zwischen Einladungen in Millisekunden (Standard: 500) |
+| `permission_groups.edit_persons` | Gruppe für Schreibzugriff (Standard: Personen bearbeiten) |
+| `permission_groups.export_persons` | Gruppe für Export (Standard: Personen exportieren) |
 
 Login-Token beschaffen:
 
 ```bash
-go run ./cmd/masseneinladung setup init
+.\churchtools-invite.exe setup init
 # oder nach Login:
-go run ./cmd/masseneinladung setup token
+.\churchtools-invite.exe setup token
 ```
 
 Berechtigungen prüfen:
 
 ```bash
-go run ./cmd/masseneinladung setup permissions
+.\churchtools-invite.exe setup permissions
 ```
 
 ## CSV-Format
@@ -67,34 +117,78 @@ id,vorname,nachname,email
 - Name und E-Mail sind optional; bei abweichender E-Mail wird ChurchTools vor
   dem Einladen aktualisiert (alte Adresse bleibt als zusätzliche erhalten)
 
+### Dry-run – Vor dem Versand prüfen
+
+`invite --dry-run` durchläuft dieselbe Prüflogik wie ein echter Lauf, **ohne**
+Einladungen zu senden und **ohne** Daten in ChurchTools zu ändern (kein
+E-Mail-Sync). Pro CSV-Zeile wird geprüft:
+
+- Existiert die Person-ID in ChurchTools?
+- Ist die Person bereits eingeladen? (Standard: als „übersprungen“ gemeldet)
+- Liegt eine Einladungs-E-Mail vor (CSV und/oder ChurchTools)?
+- Wäre ein E-Mail-Abgleich aus der CSV erforderlich?
+
+Ausgabe: Zeilenweises Protokoll mit `OK`, `ÜBERSPRUNGEN` oder `FEHLER` plus
+Zusammenfassung. Bei mindestens einem Fehler endet das Programm mit Exit-Code
+1.
+
+Empfohlen vor dem ersten echten Versand. Alle Optionen von `invite`
+(`--reinvite`, `--no-sync-email`, …) gelten auch im Dry-Run.
+
 ## Befehle
 
 | Befehl | Zweck |
 | --- | --- |
-| `setup init` | Interaktive config.json anlegen |
+| `setup init` | Interaktive `config.json` anlegen |
 | `setup test` | Login und Verbindung testen |
 | `setup token` | Login-Token anzeigen |
 | `setup permissions` | Einladungs-Berechtigungen prüfen |
 | `whoami` | Angemeldeten Benutzer anzeigen |
-| `validate --csv DATEI` | CSV prüfen ohne Versand |
-| `export --output DATEI` | Personenliste als Einladungs-CSV exportieren |
-| `export --group-id ID` | Nur Gruppenmitglieder exportieren |
-| `invite --csv DATEI` | Einladungen senden |
-| `invite --csv DATEI --dry-run` | Einladungen simulieren |
-| `invite --csv DATEI --no-sync-email` | E-Mail-Sync aus CSV deaktivieren |
+| `export -o DATEI` | Personenliste als Einladungs-CSV exportieren |
+| `export -i` | Standort und Filter interaktiv wählen |
+| `export --campus-id ID` | Nur Personen dieses Standorts |
+| `export --all-campuses` | Keinen Standort-Filter (Standard: Standort des Nutzers) |
+| `export --status-id ID` | Nur Personen mit diesem Status |
+| `export --group-id ID` | Nur Gruppenmitglieder |
+| `invite -f DATEI` | Einladungen senden |
+| `invite -f DATEI --dry-run` | Prüfen/simulieren ohne Versand (siehe oben) |
+| `invite -f DATEI --no-sync-email` | E-Mail-Sync aus CSV deaktivieren |
+| `invite -f DATEI --reinvite` | Bereits eingeladene Personen erneut einladen |
+| `invite -f DATEI --skip-permission-request` | Keine Gruppenanfrage bei fehlenden Rechten |
 
 ## Entwicklung
 
 ```bash
 go test ./...
 go vet ./...
-go build .
+go build -o churchtools-invite.exe .
 ```
+
+## Contributing
+
+Beiträge sind willkommen! Bitte vor einem Pull Request
+[CONTRIBUTING.de.md](CONTRIBUTING.de.md) lesen.
 
 ## Lizenz
 
-MIT – siehe [LICENSE](LICENSE).
+Diese Software steht unter einer modifizierten MIT-Lizenz (siehe [LICENSE](LICENSE)).
+Du darfst den Code frei verwenden, anpassen und weitergeben, **solange** du
+den ursprünglichen Autor **Jan Neuhaus** nennst und einen Link auf das
+Original-Repository beibehältst: `https://github.com/janmz/churchtools-invite`.
+
+**Es wird keine Gewährleistung übernommen.**
 
 ## Unterstützung
 
-Spenden für die [CFI Kinderhilfe](https://cfi-kinderhilfe.de/?q=VAYAMASSEN).
+Wenn dir das Projekt nützt, unterstütze bitte die **CFI-Kinderhilfe**:
+[Spendenseite](https://cfi-kinderhilfe.de/jetzt-spenden?q=VAYAMASSEN)
+(Spenden gehen an die CFI-Kinderhilfe, nicht an den Autor.)
+
+## Kontakt
+
+**Autor**: Jan Neuhaus – [VAYA Consulting](https://vaya-consulting.de/development?q=GITHUB)
+**Repository**: [https://github.com/janmz/churchtools-invite](https://github.com/janmz/churchtools-invite)
+
+## Changelog
+
+Siehe [Changelog.md](Changelog.md) für die Versionshistorie.
