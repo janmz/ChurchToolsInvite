@@ -61,43 +61,57 @@ func PrepareEmailUpdate(csvEmail string, person Person) EmailSyncPlan {
 	}
 
 	updated := make([]PersonEmail, 0, len(existing)+2)
-	csvPresent := false
+	seen := make(map[string]int, len(existing))
+	csvKey := strings.ToLower(csvEmail)
 
 	for _, entry := range existing {
 		addr := strings.TrimSpace(entry.Email)
 		if addr == "" {
 			continue
 		}
-		if strings.EqualFold(addr, csvEmail) {
-			csvPresent = true
-			updated = append(updated, PersonEmail{
-				Email:          addr,
-				IsDefault:      true,
-				ContactLabelID: entry.ContactLabelID,
-			})
+		key := strings.ToLower(addr)
+		if idx, ok := seen[key]; ok {
+			// De-duplicate: keep a single entry per address.
+			// If the address matches the CSV e-mail, ensure it becomes default.
+			if key == csvKey && !updated[idx].IsDefault {
+				updated[idx].IsDefault = true
+			}
 			continue
 		}
+		seen[key] = len(updated)
 		updated = append(updated, PersonEmail{
 			Email:          addr,
-			IsDefault:      false,
+			IsDefault:      key == csvKey,
 			ContactLabelID: entry.ContactLabelID,
 		})
 	}
 
-	if !csvPresent {
+	if _, ok := seen[csvKey]; !ok {
 		updated = append([]PersonEmail{{
 			Email:          csvEmail,
 			IsDefault:      true,
 			ContactLabelID: labelForNewDefault,
 		}}, updated...)
+		// Shift indexes of previously seen entries by 1 (we prepended).
+		for key, idx := range seen {
+			seen[key] = idx + 1
+		}
+		seen[csvKey] = 0
 	}
 
-	if !containsEmail(updated, current) {
+	currentKey := strings.ToLower(strings.TrimSpace(current))
+	if currentKey != "" {
+		if idx, ok := seen[currentKey]; ok {
+			if updated[idx].IsDefault {
+				updated[idx].IsDefault = false
+			}
+		} else {
 		updated = append(updated, PersonEmail{
 			Email:          current,
 			IsDefault:      false,
 			ContactLabelID: oldLabelID,
 		})
+		}
 	}
 
 	return EmailSyncPlan{

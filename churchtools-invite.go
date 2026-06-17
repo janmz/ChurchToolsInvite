@@ -11,16 +11,15 @@ package main
  * using ChurchTools for managing their contacts and communications.
  *
  *
- * Version: 2.3.3.35 (in version.go zu ändern)
+ * Version: 2.4.0.36 (in version.go zu ändern)
  *
  * Author: Jan Neuhaus, VAYA Consulting, https://vaya-consulting.de/development
  *
  * Repository: https://github.com/janmz/ChurchToolsInvite
  *
  * ChangeLog:
- *  17.06.26	2.3.3	Fixed: Windows build including icon
- *  17.06.26	2.3.2	Fixed: Windows build including icon
- *  17.06.26	2.3.1	Fixed: Windows build including icon
+ *  17.06.26	2.4.0	Fixed: Replacement of e-mail-addresses now working and tested
+ *  17.06.26	2.3.2	Fixed: Windows build including icon - worked!
  *  17.06.26	2.3.0	Feature: Updated documentation, fixed small vulnerabilities, expaned test code
  *  17.06.26	2.2.0	Full support of main and sub instances using OAuth
  *  17.06.26	2.1.0	Including executables for Windows, Linux and macOS

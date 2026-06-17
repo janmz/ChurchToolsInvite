@@ -50,6 +50,30 @@ func TestPrepareEmailUpdateReplacePrimaryKeepOld(t *testing.T) {
 	}
 }
 
+func TestPrepareEmailUpdateReplacePrimaryDedupesOld(t *testing.T) {
+	person := churchtools.Person{
+		Email: "alt@example.org",
+		Emails: []churchtools.PersonEmail{
+			{Email: "alt@example.org", IsDefault: true, ContactLabelID: 2},
+			{Email: "alt@example.org", IsDefault: false, ContactLabelID: 2},
+		},
+	}
+
+	plan := churchtools.PrepareEmailUpdate("neu@example.org", person)
+	if !plan.Needed {
+		t.Fatal("expected update")
+	}
+	if len(plan.Emails) != 2 {
+		t.Fatalf("emails len = %d, want 2: %+v", len(plan.Emails), plan.Emails)
+	}
+	if plan.Emails[0].Email != "neu@example.org" || !plan.Emails[0].IsDefault {
+		t.Fatalf("expected neu default first: %+v", plan.Emails)
+	}
+	if plan.Emails[1].Email != "alt@example.org" || plan.Emails[1].IsDefault {
+		t.Fatalf("expected alt non-default second: %+v", plan.Emails)
+	}
+}
+
 func TestPrepareEmailUpdatePromoteExistingAdditional(t *testing.T) {
 	person := churchtools.Person{
 		Email: "alt@example.org",
