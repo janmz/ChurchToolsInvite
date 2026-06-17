@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.3.2.34] - 2026-06-17 10:32:30
+
+### Fixed
+
+- `embed-windows-icon.sh`: Icon-Einbettung per `go run` statt `go install` (kein
+  GOBIN/PATH/Cross-GOOS-Problem mehr in GitHub Actions)
+
 ## [2.3.1.32] - 2026-06-17 10:28:25
 
 ### Fixed
