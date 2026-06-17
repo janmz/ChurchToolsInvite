@@ -18,7 +18,14 @@ GOARCH="${GOARCH:-amd64}"
 
 export GOOS GOARCH
 go install github.com/tc-hib/go-winres@v0.3.3
-go-winres simply \
+
+GO_WINRES="$(go env GOPATH)/bin/go-winres"
+if [ ! -x "$GO_WINRES" ]; then
+  echo "go-winres not found at $GO_WINRES after go install" >&2
+  exit 1
+fi
+
+"$GO_WINRES" simply \
   --icon "$ICON" \
   --manifest cli \
   --file-version "$VERSION" \

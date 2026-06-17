@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.3.0.30] - 2026-06-17 10:25:39
+
+### Fixed
+
+- Release-Build (Windows): `embed-windows-icon.sh` ruft `go-winres` über
+  `$(go env GOPATH)/bin` auf (CI-PATH enthält dieses Verzeichnis oft nicht)
+
 ## [2.2.1.24] - 2026-06-17 10:04:31
 
 ### Fixed
