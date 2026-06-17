@@ -2,6 +2,48 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.2.0.21] - 2026-06-17 09:12:47
+
+### Changed
+
+- Bereits eingeladene Personen werden nur noch übersprungen, wenn die E-Mail aus
+  der CSV mit ChurchTools übereinstimmt; bei abweichender Adresse erfolgen
+  E-Mail-Update und erneute Einladung (ohne `--reinvite`)
+
+## [2.2.0.20] - 2026-06-17 09:03:23
+
+### Added
+
+- OAuth-Bridge für Nebeninstanzen: Login auf Zentralinstanz, dann
+  `oauthclients/…/startlogin` mit Redirect-Folge; API-Session auf der
+  konfigurierten Nebeninstanz; `MeAPIToken()` via `/api/person/me/apitoken`
+- `setup init` holt nach Passwort-Login bevorzugt den API-Token der Nebeninstanz
+
+### Changed
+
+- Passwort-Login auf Nebeninstanzen nutzt nicht mehr nur die Zentral-URL für
+  API-Aufrufe, sondern den vollständigen OAuth-Flow (README aktualisiert)
+
+## [2.1.3.19] - 2026-06-17 08:38:57
+
+### Added
+
+- `setup init`: nur Instanzname (z. B. `emk-rheinmain`) statt voller URL;
+  Passwort-Eingabe mit `*`-Maskierung (Windows/Linux/macOS, `golang.org/x/term`)
+
+### Fixed
+
+- `CT_BASE_URL` und `base_url` als Instanzname werden in der vollständige URL
+  übersetzt (`Validate` wirkte bisher nicht auf die geladene Config)
+
+## [2.1.3.18] - 2026-06-17 08:33:32
+
+### Fixed
+
+- Hauptinstanz-Fallback auch für Login-Token und CSRF-Abruf (Token gilt oft nur
+  auf `haupt.church.tools`, nicht auf `haupt-neben.church.tools`); Session-
+  Cookies beim Instanzwechsel nicht mehr verworfen
+
 ## [2.1.2.16] - 2026-06-17 08:20:05
 
 ### Added

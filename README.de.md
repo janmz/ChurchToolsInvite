@@ -18,8 +18,9 @@ ChurchTools** aus einer CSV-Datei, u. a.:
 - Einladungen über die REST-API (`POST /persons/{id}/invite`)
 - Personenexport mit Standort-, Status- und Gruppenfiltern
 - Setup, Dry-Run und Berechtigungshinweise
-- Bereits eingeladene Personen standardmäßig überspringen (`--reinvite` zum
-  erneuten Einladen)
+- Bereits eingeladene Personen standardmäßig überspringen; bei abweichender
+  E-Mail in der CSV werden Adresse aktualisiert und erneut eingeladen
+  (`--reinvite` erzwingt Einladung auch bei gleicher E-Mail)
 
 Dies soll den Prozess unterstützen, den jede Gemeinde durchmacht, wenn sie neu mit Churchtools beginnt. Meist werden Personendaten aus einem bestehenden Tool übernommen, aber alle müssen neu für Churchtools eingeladen werden, damit auch die datenschutzrechtlichlichen Einwilligungen für Chruchtools erfasst und dokumentiert werden können. Meist sind in den Altsystemen noch "Altlasten", wie verstorbene oder ausgeschiedene ehemalige Mitglieder. Oder es sind E-Mail-Adressen hinterlegt, die nicht mehr aktuell oder präferiert sind. Der letzte Umstand kann dazu führen, dass Personen doppelt angelegt werden und dann mühsam zusammengeführt werden müssen. Mit diesem Tool kann dies zu großen Teilen vermieden werden. Zuerst werden die Daten exportiert und auch eine nicht technick-affine Person kann dann die Liste bereinigen (löschen und E-Mails korrigieren). Diese Liste wird dann für die Generierungen der Einladungen verwendet, wobei bei Bedarf die E-Mail-Adressen vorher korrigiert werden. Dazu muss die Person, die das Tool bedient die entsprechenden Rechte haben, oder durch einfache Anfragen in die dazu notwendigen Gruppen kommen. Das Tool versucht bei fehlenden Rechten eine automatische Aufnahme in die notwendigen Gruppen, aber wenn dies scheitert müssen die Rechte manuell zugeordnet werden. Es ist auch möglich einen Testlauf zu unternehmen, der zeigt, wer eingeladen würde und welche Änderungen vorgenommen würden.
 
@@ -28,12 +29,14 @@ Dies soll den Prozess unterstützen, den jede Gemeinde durchmacht, wenn sie neu 
 - CSV einlesen mit Personen-IDs (`id`, `person_id`, `ct_id`, …)
 - Einladungs-E-Mails über die ChurchTools-REST-API senden
 - Personen exportieren (Standort, Status, Gruppe; interaktive Auswahl)
-- Setup-Befehle für URL, Login-Token, Verbindungstest und Berechtigungshinweise
+- Setup-Befehle für Instanzname, Login-Token, Verbindungstest und
+  Berechtigungshinweise
 - Dry-Run zur Prüfung von CSV und Personendaten vor dem Versand
 - E-Mail aus CSV übernehmen: abweichende Adresse wird primär gesetzt,
   bisherige ChurchTools-Adresse bleibt als zusätzliche erhalten
-- Bereits eingeladene Personen standardmäßig überspringen; mit `--reinvite`
-  erneut einladen
+- Bereits eingeladene Personen überspringen, sofern die E-Mail stimmt; weicht
+  die CSV-Adresse ab, E-Mail aktualisieren und erneut einladen; mit
+  `--reinvite` alle bereits eingeladenen Personen erneut einladen
 - Automatische Gruppenanfrage bei fehlenden Rechten für Export und
   E-Mail-Sync
 
@@ -79,10 +82,8 @@ Unter Linux/macOS heißt die Datei `churchtools-invite` (ohne `.exe`).
 
 ```bash
 copy config.example.json config.json
-# config.json anpassen
+# config.json anpassen oder setup init
 
-
-```bash
 .\churchtools-invite.exe setup test
 .\churchtools-invite.exe export -o personen.csv
 ```
@@ -93,7 +94,7 @@ copy config.example.json config.json
 .\churchtools-invite.exe invite -f personen.csv --dry-run
 ```
 
-**Fehler in der Liste anpassen, evtl. Rechte "besorgen"**
+**Fehler in der Liste anpassen, evtl. Rechte „besorgen“**
 
 ```bash
 .\churchtools-invite.exe invite -f personen.csv
@@ -107,7 +108,7 @@ Kopiere `config.example.json` nach `config.json` oder nutze Umgebungsvariablen:
 
 | Variable | Beschreibung |
 | --- | --- |
-| `CT_BASE_URL` | URL der ChurchTools-Instanz |
+| `CT_BASE_URL` | Instanzname (z. B. `emk-rheinmain`) oder volle URL |
 | `CT_LOGIN_TOKEN` | API-Login-Token |
 | `CT_USERNAME` / `CT_PASSWORD` | Alternative zum Token |
 | `delay_ms` | Pause zwischen Einladungen in Millisekunden (Standard: 500) |
@@ -123,20 +124,29 @@ Login-Token beschaffen:
 .\churchtools-invite.exe setup token
 ```
 
-### Haupt- und Nebeninstanz
+### Haupt- und Nebeninstanz (OAuth)
 
 Bei ChurchTools-Mandanten mit mehreren Standorten kann die URL einer
 Nebeninstanz so aussehen: `https://haupt-neben.church.tools` (Beispiel:
-`https://emk-rheinmain.church.tools`). Benutzerkonten liegen oft auf der
-**Hauptinstanz** `https://haupt.church.tools` (Beispiel:
-`https://emk.church.tools`), auch wenn in der Konfiguration die Nebeninstanz
-steht.
+`https://emk-rheinmain.church.tools`). Benutzerkonten liegen auf der
+**Zentralinstanz** `https://haupt.church.tools` (Beispiel:
+`https://emk.church.tools`).
 
-Schlägt die Anmeldung mit Benutzername/Passwort auf der konfigurierten URL fehl
-und die Adresse entspricht dem Muster `haupt-neben.church.tools`, versucht das
-Tool automatisch die Anmeldung auf `https://haupt.church.tools`. Bei Erfolg
-erscheint eine Meldung, dass auf die Hauptinstanz gewechselt wurde. API-Aufrufe
-laufen danach über die Hauptinstanz. Ein Login-Token ist davon nicht betroffen.
+Schlägt die direkte Anmeldung auf der Nebeninstanz fehl, baut das Tool bei
+**Benutzername/Passwort** den OAuth-Flow nach (klappt der Direktlogin, entfällt
+dieser Schritt):
+
+1. Login auf der Zentralinstanz (`/api/login`)
+2. `oauthclients/…/startlogin` auf der Nebeninstanz (Redirect zur Zentralinstanz)
+3. OAuth-Authorize mit bestehender Zentral-Session
+4. Callback auf der Nebeninstanz → lokale Session
+5. API-Aufrufe weiter über die **Nebeninstanz** (konfigurierte URL)
+
+`setup init` kann danach automatisch ein Login-Token der Nebeninstanz holen
+(`/api/person/me/apitoken`).
+
+Bei **Login-Token**, der nur auf der Zentralinstanz gültig ist, wird als Fallback
+weiterhin die Zentralinstanz für API-Aufrufe verwendet (Hinweis in der Ausgabe).
 
 Berechtigungen prüfen:
 
@@ -162,7 +172,10 @@ Einladungen zu senden und **ohne** Daten in ChurchTools zu ändern (kein
 E-Mail-Sync). Pro CSV-Zeile wird geprüft:
 
 - Existiert die Person-ID in ChurchTools?
-- Ist die Person bereits eingeladen? (Standard: als „übersprungen“ gemeldet)
+- Ist die Person bereits eingeladen? Erkennung u. a. über `invitationStatus`
+  (`accepted`, `pending`). Standard: überspringen, sofern die E-Mail aus der
+  CSV mit ChurchTools übereinstimmt; bei abweichender E-Mail werden Update und
+  erneute Einladung simuliert
 - Liegt eine Einladungs-E-Mail vor (CSV und/oder ChurchTools)?
 - Wäre ein E-Mail-Abgleich aus der CSV erforderlich?
 
@@ -177,20 +190,22 @@ Empfohlen vor dem ersten echten Versand. Alle Optionen von `invite`
 
 | Befehl | Zweck |
 | --- | --- |
-| `setup init` | Interaktive `config.json` anlegen |
+| `setup init` | Interaktive `config.json` anlegen (Instanzname, Passwort mit `*`-Eingabe) |
 | `setup test` | Login und Verbindung testen |
 | `setup token` | Login-Token anzeigen |
 | `setup permissions` | Einladungs-Berechtigungen prüfen |
-| `whoami` | Angemeldeten Benutzer anzeigen |
-| `export -o DATEI` | Personenliste als Einladungs-CSV exportieren, Default `personen.csv` |
+| `whoami` | Angemeldeten Benutzer, Standort-ID und tatsächliche Instanz-URL anzeigen |
+| `export -o DATEI` | Personenliste als Einladungs-CSV exportieren, Default `personen.csv` (`-` = stdout) |
 | `export -i` | Standort und Filter interaktiv wählen |
 | `export --campus-id ID` | Nur Personen dieses Standorts |
 | `export --all-campuses` | Keinen Standort-Filter (Standard: Standort des Nutzers bzw. `campus_id` in config) |
 | `export --status-id ID` | Nur Personen mit diesem Status |
 | `export --group-id ID` | Nur Gruppenmitglieder |
+| `export --skip-permission-request` | Keine Gruppenanfrage bei fehlenden Export-Rechten |
 | `invite -f DATEI` | Einladungen senden |
 | `invite -f DATEI --dry-run` | Prüfen/simulieren ohne Versand (siehe oben) |
-| `invite -f DATEI --no-sync-email` | E-Mail-Sync aus CSV deaktivieren |
+| `invite -f DATEI --delay-ms MS` | Pause zwischen Einladungen (0 = `delay_ms` aus config) |
+| `invite -f DATEI --no-sync-email` | E-Mail-Sync aus CSV deaktivieren (abweichende E-Mail → Fehler) |
 | `invite -f DATEI --reinvite` | Bereits eingeladene Personen erneut einladen |
 | `invite -f DATEI --skip-permission-request` | Keine Gruppenanfrage bei fehlenden Rechten |
 

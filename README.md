@@ -18,17 +18,22 @@ invitations** from a CSV file, including:
 - REST API invitations (`POST /persons/{id}/invite`)
 - Person export with campus, status and group filters
 - Setup, dry-run and permission helpers
-- Skip already invited persons by default (`--reinvite` to invite again)
+- Skip already invited persons by default; if the CSV e-mail differs, update
+  the address and invite again (`--reinvite` forces invite even when the
+  e-mail matches)
 
 ## Features
 
 - Read person IDs from CSV (`id`, `person_id`, `ct_id`, …)
 - Send invitation e-mails via the ChurchTools REST API
 - Export persons (campus, status, group; interactive selection)
-- Setup commands for URL, login token, connection test and permission hints
+- Setup commands for instance name, login token, connection test and permission
+  hints
 - Dry-run mode to check CSV and person data before sending
 - Sync CSV e-mail to ChurchTools when it differs (old address kept as additional)
-- Skip already invited persons by default; use `--reinvite` to invite them again
+- Skip already invited persons when the e-mail matches; if the CSV e-mail
+  differs, update and invite again; use `--reinvite` to invite all already
+  invited persons again
 - Automatic group membership request when export or e-mail sync permissions
   are missing
 
@@ -73,10 +78,15 @@ On Windows the executable is `churchtools-invite.exe`.
 
 ```bash
 cp config.example.json config.json
-# edit config.json
+# edit config.json or run setup init
 
 ./churchtools-invite setup test
 ./churchtools-invite export -o personen.csv
+```
+
+Edit the list manually, then dry-run:
+
+```bash
 ./churchtools-invite invite -f personen.csv --dry-run
 ./churchtools-invite invite -f personen.csv
 ```
@@ -89,7 +99,7 @@ Copy `config.example.json` to `config.json` or use environment variables:
 
 | Variable | Description |
 | --- | --- |
-| `CT_BASE_URL` | ChurchTools instance URL |
+| `CT_BASE_URL` | Instance name (e.g. `emk-rheinmain`) or full URL |
 | `CT_LOGIN_TOKEN` | API login token |
 | `CT_USERNAME` / `CT_PASSWORD` | Alternative to token |
 | `delay_ms` | Delay between invitations in milliseconds (default: 500) |
@@ -105,19 +115,27 @@ Obtain a login token:
 ./churchtools-invite setup token
 ```
 
-### Main and sub-instance
+### Main and sub-instance (OAuth)
 
 In multi-campus ChurchTools setups, a sub-instance URL may look like
 `https://main-sub.church.tools` (e.g. `https://emk-rheinmain.church.tools`).
-User accounts are often registered on the **main instance**
-`https://main.church.tools` (e.g. `https://emk.church.tools`) even when the
-config points at a sub-instance URL.
+User accounts live on the **central instance**
+`https://main.church.tools` (e.g. `https://emk.church.tools`).
 
-If username/password login fails on the configured URL and the host matches
-`main-sub.church.tools`, the tool automatically tries
-`https://main.church.tools`. On success it prints a note that it switched to
-the main instance; subsequent API calls use that URL. Login-token auth is
-unchanged.
+If direct login on the sub-instance fails, **username/password** auth runs the
+OAuth bridge (when direct login succeeds, OAuth is skipped):
+
+1. Login on the central instance (`/api/login`)
+2. `oauthclients/…/startlogin` on the sub-instance (redirect to central)
+3. OAuth authorize using the central session
+4. Callback on the sub-instance → local session
+5. API calls keep using the **sub-instance** (configured URL)
+
+`setup init` can then fetch a sub-instance login token automatically
+(`/api/person/me/apitoken`).
+
+If a **login token** is only valid on the central instance, the tool still
+falls back to the central URL for API calls (note in output).
 
 Check permissions:
 
@@ -143,12 +161,14 @@ invitations and **does not** change anything in ChurchTools (no e-mail sync).
 For each CSV row it verifies:
 
 - Does the person ID exist in ChurchTools?
-- Is the person already invited? (by default reported as “skipped”)
+- Is the person already invited? Detected e.g. via `invitationStatus`
+  (`accepted`, `pending`). By default: skip if the CSV e-mail matches
+  ChurchTools; if it differs, simulate e-mail update and re-invite
 - Is there an invitation e-mail (CSV and/or ChurchTools)?
 - Would an e-mail sync from the CSV be required?
 
-Output: line-by-line log with `OK`, `SKIPPED` or `ERROR` plus a summary. Exit
-code 1 if at least one row failed.
+Output: line-by-line log with `OK`, `ÜBERSPRUNGEN` or `FEHLER` (German labels)
+plus a summary. Exit code 1 if at least one row failed.
 
 Recommended before the first real run. All invite options (`--reinvite`,
 `--no-sync-email`, …) apply to dry-run as well.
@@ -157,20 +177,22 @@ Recommended before the first real run. All invite options (`--reinvite`,
 
 | Command | Purpose |
 | --- | --- |
-| `setup init` | Interactive `config.json` creation |
+| `setup init` | Interactive `config.json` (instance name, masked password with `*`) |
 | `setup test` | Test login and connection |
 | `setup token` | Show login token |
 | `setup permissions` | List invite-related permissions |
-| `whoami` | Show logged-in user |
-| `export -o FILE` | Export persons to invite CSV format |
+| `whoami` | Show logged-in user, campus ID and effective instance URL |
+| `export -o FILE` | Export persons to invite CSV format (default `personen.csv`; `-` = stdout) |
 | `export -i` | Choose campus and filters interactively |
 | `export --campus-id ID` | Export persons from this campus only |
 | `export --all-campuses` | No campus filter (default: user's campus or `campus_id` in config) |
 | `export --status-id ID` | Export persons with this status only |
 | `export --group-id ID` | Export group members only |
+| `export --skip-permission-request` | Do not request group membership for missing export rights |
 | `invite -f FILE` | Send invitations |
 | `invite -f FILE --dry-run` | Check/simulate without sending (see above) |
-| `invite -f FILE --no-sync-email` | Skip CSV e-mail sync |
+| `invite -f FILE --delay-ms MS` | Delay between invitations (0 = `delay_ms` from config) |
+| `invite -f FILE --no-sync-email` | Skip CSV e-mail sync (mismatched e-mail → error) |
 | `invite -f FILE --reinvite` | Invite persons who already have an account again |
 | `invite -f FILE --skip-permission-request` | Do not request group membership for missing rights |
 

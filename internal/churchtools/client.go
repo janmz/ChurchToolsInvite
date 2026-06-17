@@ -70,14 +70,53 @@ func (c *Client) LoginRedirectNote() string {
 
 // Login authenticates and loads a CSRF token for legacy calls.
 func (c *Client) Login() error {
+	c.baseURL = c.configuredBaseURL
+	c.loginRedirectNote = ""
+
+	if err := c.loginAttempt(); err == nil {
+		return nil
+	} else {
+		lastErr := err
+		mainURL, ok := mainInstanceURLForLogin(c.configuredBaseURL)
+		if !ok || mainURL == c.configuredBaseURL {
+			return lastErr
+		}
+
+		if c.loginToken == "" && strings.TrimSpace(c.password) != "" {
+			c.resetHTTPClient()
+			c.loginRedirectNote = SubInstanceOAuthLoginNote(c.configuredBaseURL, mainURL)
+			if err := c.authenticateSubInstanceViaOAuth(mainURL, c.configuredBaseURL); err != nil {
+				return fmt.Errorf("anmeldung nebeninstanz fehlgeschlagen: %w", err)
+			}
+			token, err := c.fetchCSRFToken()
+			if err != nil {
+				return err
+			}
+			c.csrfToken = token
+			return nil
+		}
+
+		if c.loginToken != "" {
+			c.resetHTTPClient()
+			c.baseURL = mainURL
+			c.loginRedirectNote = MainInstanceLoginNote(c.configuredBaseURL, mainURL)
+			if err := c.loginAttempt(); err != nil {
+				return lastErr
+			}
+			return nil
+		}
+
+		return lastErr
+	}
+}
+
+func (c *Client) loginAttempt() error {
 	if c.loginToken != "" {
 		if err := c.authenticateWithToken(); err != nil {
 			return err
 		}
-	} else {
-		if err := c.authenticateWithPassword(); err != nil {
-			return err
-		}
+	} else if err := c.authenticateWithPassword(); err != nil {
+		return err
 	}
 
 	token, err := c.fetchCSRFToken()
@@ -114,26 +153,22 @@ func (c *Client) authenticateWithToken() error {
 	if err := json.Unmarshal(body, &envelope); err != nil {
 		return fmt.Errorf("whoami parsen: %w", err)
 	}
+	if envelope.Data.ID <= 0 {
+		return &APIError{
+			StatusCode: resp.StatusCode,
+			Message:    "Login-Token ungültig oder abgelaufen",
+			Body:       string(body),
+		}
+	}
 	c.personID = envelope.Data.ID
 	return nil
 }
 
 func (c *Client) authenticateWithPassword() error {
-	err := c.postPasswordLogin(c.baseURL)
-	if err == nil {
-		return c.finishPasswordLogin()
+	if err := c.postPasswordLogin(c.baseURL); err != nil {
+		return err
 	}
-
-	if mainURL, ok := MainInstanceURL(c.configuredBaseURL); ok && mainURL != c.baseURL {
-		if mainErr := c.postPasswordLogin(mainURL); mainErr == nil {
-			c.baseURL = mainURL
-			c.resetHTTPClient()
-			c.loginRedirectNote = MainInstanceLoginNote(c.configuredBaseURL, mainURL)
-			return c.finishPasswordLogin()
-		}
-	}
-
-	return err
+	return c.finishPasswordLogin()
 }
 
 func (c *Client) postPasswordLogin(baseURL string) error {

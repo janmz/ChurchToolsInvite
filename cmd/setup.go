@@ -8,6 +8,7 @@ import (
 
 	churchtools "github.com/janmz/churchtools-invite/internal/churchtools"
 	config "github.com/janmz/churchtools-invite/internal/config"
+	"github.com/janmz/churchtools-invite/internal/termio"
 	"github.com/spf13/cobra"
 )
 
@@ -63,9 +64,13 @@ func runSetupInit() error {
 	reader := bufio.NewReader(os.Stdin)
 	cfg := config.Config{DelayMS: 500}
 
-	fmt.Print("ChurchTools-URL (z. B. https://meine-gemeinde.church.tools): ")
-	baseURL, _ := reader.ReadString('\n')
-	cfg.BaseURL = config.NormalizeBaseURL(baseURL)
+	fmt.Print("ChurchTools-Instanz (z. B. meine-gemeinde oder emk-rheinmain): ")
+	instanceName, _ := reader.ReadString('\n')
+	baseURL, err := config.BaseURLFromInstanceName(instanceName)
+	if err != nil {
+		return err
+	}
+	cfg.BaseURL = baseURL
 
 	fmt.Print("Login-Methode [token/password]: ")
 	method, _ := reader.ReadString('\n')
@@ -77,8 +82,10 @@ func runSetupInit() error {
 		user, _ := reader.ReadString('\n')
 		cfg.Username = strings.TrimSpace(user)
 
-		fmt.Print("Passwort: ")
-		pass, _ := reader.ReadString('\n')
+		pass, err := termio.ReadPassword("Passwort: ")
+		if err != nil {
+			return fmt.Errorf("passwort einlesen: %w", err)
+		}
 		cfg.Password = strings.TrimSpace(pass)
 	default:
 		fmt.Print("Login-Token: ")
@@ -99,7 +106,10 @@ func runSetupInit() error {
 	fmt.Printf("Login erfolgreich als %s %s (%s)\n", user.FirstName, user.LastName, user.Email)
 
 	if cfg.LoginToken == "" {
-		token, err := client.LoginToken(user.ID)
+		token, err := client.MeAPIToken()
+		if err != nil || token == "" {
+			token, err = client.LoginToken(user.ID)
+		}
 		if err == nil && token != "" {
 			fmt.Println("\nOptional: Login-Token für dauerhafte API-Nutzung gefunden.")
 			fmt.Print("Token in config.json speichern? [j/N]: ")

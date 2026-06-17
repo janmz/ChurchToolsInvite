@@ -13,12 +13,29 @@ func TestNormalizeBaseURL(t *testing.T) {
 		"https://demo.church.tools/":     "https://demo.church.tools",
 		"https://demo.church.tools/api/": "https://demo.church.tools",
 		"  https://demo.church.tools  ":  "https://demo.church.tools",
+		"demo":                           "https://demo.church.tools",
+		"EMK-Rheinmain":                  "https://emk-rheinmain.church.tools",
+		"demo.church.tools":              "https://demo.church.tools",
 	}
 
 	for input, want := range tests {
 		if got := config.NormalizeBaseURL(input); got != want {
 			t.Fatalf("NormalizeBaseURL(%q) = %q, want %q", input, got, want)
 		}
+	}
+}
+
+func TestBaseURLFromInstanceName(t *testing.T) {
+	url, err := config.BaseURLFromInstanceName("emk-rheinmain")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if url != "https://emk-rheinmain.church.tools" {
+		t.Fatalf("url = %q", url)
+	}
+
+	if _, err := config.BaseURLFromInstanceName("bad/name"); err == nil {
+		t.Fatal("expected error for slash in name")
 	}
 }
 
@@ -70,9 +87,12 @@ func TestLoadCampusID(t *testing.T) {
 }
 
 func TestValidateRequiresAuth(t *testing.T) {
-	cfg := config.Config{BaseURL: "https://demo.church.tools"}
+	cfg := config.Config{BaseURL: "demo"}
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected validation error without credentials")
+	}
+	if cfg.BaseURL != "https://demo.church.tools" {
+		t.Fatalf("base url = %q", cfg.BaseURL)
 	}
 }
 
@@ -97,5 +117,25 @@ func TestLoadAppliesEnv(t *testing.T) {
 	}
 	if loaded.LoginToken != "from-env" {
 		t.Fatalf("token = %q", loaded.LoginToken)
+	}
+}
+
+func TestLoadAppliesEnvInstanceName(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+
+	if err := os.WriteFile(path, []byte(`{"login_token":"x"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("CT_BASE_URL", "emk-rheinmain")
+	t.Setenv("CT_LOGIN_TOKEN", "from-env")
+
+	loaded, err := config.Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if loaded.BaseURL != "https://emk-rheinmain.church.tools" {
+		t.Fatalf("base url = %q", loaded.BaseURL)
 	}
 }

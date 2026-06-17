@@ -44,7 +44,7 @@ func Run(client *churchtools.Client, entries []csvfile.Entry, opts Options) ([]R
 			continue
 		}
 
-		if !opts.Reinvite && person.HasChurchToolsAccount() {
+		if shouldSkipInvitedPerson(person, entry, opts) {
 			result.Success = true
 			result.Skipped = true
 			prefix := ""
@@ -154,6 +154,28 @@ func resolveInviteEmail(
 
 	note = "; " + plan.Detail
 	return plan.Primary, note, nil
+}
+
+func shouldSkipInvitedPerson(person churchtools.Person, entry csvfile.Entry, opts Options) bool {
+	if opts.Reinvite || !person.HasChurchToolsAccount() {
+		return false
+	}
+	return !needsEmailUpdate(person, entry, opts)
+}
+
+func needsEmailUpdate(person churchtools.Person, entry csvfile.Entry, opts Options) bool {
+	csvEmail := strings.TrimSpace(entry.Email)
+	if csvEmail == "" {
+		return false
+	}
+	if !opts.SyncEmail {
+		current := strings.TrimSpace(person.Email)
+		if current == "" {
+			return true
+		}
+		return !strings.EqualFold(current, csvEmail)
+	}
+	return churchtools.PrepareEmailUpdate(csvEmail, person).Needed
 }
 
 func formatLabel(entry csvfile.Entry) string {

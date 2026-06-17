@@ -8,6 +8,8 @@ import (
 
 const churchToolsHostSuffix = ".church.tools"
 
+var mainInstanceURLForLogin = MainInstanceURL
+
 // MainInstanceURL derives the main ChurchTools instance from a sub-instance URL.
 // Example: https://emk-rheinmain.church.tools -> https://emk.church.tools
 func MainInstanceURL(instanceURL string) (string, bool) {
@@ -51,6 +53,15 @@ func MainInstanceLoginNote(configuredURL, mainURL string) string {
 		"Hinweis: Anmeldung auf der Hauptinstanz %s erfolgreich (konfiguriert: %s).",
 		mainURL,
 		configuredURL,
+	)
+}
+
+// SubInstanceOAuthLoginNote explains OAuth bridging from central to sub-instance.
+func SubInstanceOAuthLoginNote(subURL, centralURL string) string {
+	return fmt.Sprintf(
+		"Hinweis: Anmeldung über OAuth von Zentralinstanz %s für Nebeninstanz %s.",
+		centralURL,
+		subURL,
 	)
 }
 

@@ -121,7 +121,7 @@ func (c *Config) applyEnv() {
 }
 
 // Validate checks required fields.
-func (c Config) Validate() error {
+func (c *Config) Validate() error {
 	if strings.TrimSpace(c.BaseURL) == "" {
 		return errors.New("base_url fehlt (config oder CT_BASE_URL)")
 	}
@@ -137,9 +137,19 @@ func (c Config) Validate() error {
 	return nil
 }
 
-// NormalizeBaseURL removes trailing slashes and /api suffixes.
+// NormalizeBaseURL removes trailing slashes and /api suffixes. When raw is only
+// an instance name (no scheme), https://{name}.church.tools is assumed.
 func NormalizeBaseURL(raw string) string {
-	url := strings.TrimSpace(raw)
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	if !strings.Contains(raw, "://") {
+		if url, err := BaseURLFromInstanceName(raw); err == nil {
+			return url
+		}
+	}
+	url := raw
 	url = strings.TrimSuffix(url, "/")
 	url = strings.TrimSuffix(url, "/api")
 	return url
