@@ -12,13 +12,14 @@ package main
  *
  * Dependencies:
  *
- * Version: 2.2.1.23 (in version.go zu ändern)
+ * Version: 2.3.0.28 (in version.go zu ändern)
  *
  * Author: Jan Neuhaus, VAYA Consulting, https://vaya-consulting.de/development/ https://github.com/janmz
  *
  * Repository: https://github.com/janmz/ChurchToolsInvite
  *
  * ChangeLog:
+ *  17.06.26	2.3.0	Feature: Updated documentation, fixed small vulnerabilities, expaned test code
  *  17.06.26	2.2.0	Full support of main and sub instances using OAuth
  *  17.06.26	2.1.0	Including executables for Windows, Linux and macOS
  *  17.06.26	2.0.0	Published on GitHub
