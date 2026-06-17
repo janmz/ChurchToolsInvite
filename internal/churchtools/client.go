@@ -260,6 +260,10 @@ func (c *Client) fetchCSRFToken() (string, error) {
 
 // WhoAmI returns the authenticated user.
 func (c *Client) WhoAmI() (Person, error) {
+	return c.whoAmI(true)
+}
+
+func (c *Client) whoAmI(allowRelogin bool) (Person, error) {
 	req, err := http.NewRequest(http.MethodGet, c.apiURL("/whoami"), nil)
 	if err != nil {
 		return Person{}, err
@@ -274,10 +278,10 @@ func (c *Client) WhoAmI() (Person, error) {
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == http.StatusUnauthorized {
-		if err := c.relogin(); err != nil {
+		if err := c.reloginOnce(allowRelogin); err != nil {
 			return Person{}, err
 		}
-		return c.WhoAmI()
+		return c.whoAmI(false)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return Person{}, &APIError{StatusCode: resp.StatusCode, Body: string(body)}
@@ -299,6 +303,10 @@ func (c *Client) WhoAmI() (Person, error) {
 
 // LoginToken returns the API login token for a person (requires permission).
 func (c *Client) LoginToken(personID int) (string, error) {
+	return c.fetchLoginToken(personID, true)
+}
+
+func (c *Client) fetchLoginToken(personID int, allowRelogin bool) (string, error) {
 	path := fmt.Sprintf("/persons/%d/logintoken", personID)
 	req, err := http.NewRequest(http.MethodGet, c.apiURL(path), nil)
 	if err != nil {
@@ -314,10 +322,10 @@ func (c *Client) LoginToken(personID int) (string, error) {
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == http.StatusUnauthorized {
-		if err := c.relogin(); err != nil {
+		if err := c.reloginOnce(allowRelogin); err != nil {
 			return "", err
 		}
-		return c.LoginToken(personID)
+		return c.fetchLoginToken(personID, false)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return "", &APIError{
@@ -338,6 +346,10 @@ func (c *Client) LoginToken(personID int) (string, error) {
 
 // PersonByID loads a single person record.
 func (c *Client) PersonByID(id int) (Person, error) {
+	return c.personByID(id, true)
+}
+
+func (c *Client) personByID(id int, allowRelogin bool) (Person, error) {
 	req, err := http.NewRequest(http.MethodGet, c.apiURL("/persons/"+strconv.Itoa(id)), nil)
 	if err != nil {
 		return Person{}, err
@@ -352,10 +364,10 @@ func (c *Client) PersonByID(id int) (Person, error) {
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == http.StatusUnauthorized {
-		if err := c.relogin(); err != nil {
+		if err := c.reloginOnce(allowRelogin); err != nil {
 			return Person{}, err
 		}
-		return c.PersonByID(id)
+		return c.personByID(id, false)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return Person{}, &APIError{StatusCode: resp.StatusCode, Body: string(body)}
@@ -372,6 +384,10 @@ func (c *Client) PersonByID(id int) (Person, error) {
 
 // GlobalPermissions returns permission metadata for the current user.
 func (c *Client) GlobalPermissions() (map[string]any, error) {
+	return c.globalPermissions(true)
+}
+
+func (c *Client) globalPermissions(allowRelogin bool) (map[string]any, error) {
 	req, err := http.NewRequest(http.MethodGet, c.apiURL("/permissions/global"), nil)
 	if err != nil {
 		return nil, err
@@ -386,10 +402,10 @@ func (c *Client) GlobalPermissions() (map[string]any, error) {
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == http.StatusUnauthorized {
-		if err := c.relogin(); err != nil {
+		if err := c.reloginOnce(allowRelogin); err != nil {
 			return nil, err
 		}
-		return c.GlobalPermissions()
+		return c.globalPermissions(false)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, &APIError{StatusCode: resp.StatusCode, Body: string(body)}

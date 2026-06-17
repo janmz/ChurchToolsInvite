@@ -21,11 +21,13 @@ Oder unter Windows:
 scripts/ci.ps1
 ```
 
+Automatisierte Tests und manuelle Abnahme: [TESTING.de.md](TESTING.de.md).
+
 ## Pull Requests
 
 - Änderungen fokussiert halten.
-- Tests für neues Verhalten ergänzen.
-- `Changelog.md` und `internal/version/version.go` aktualisieren.
+- Tests für neues Verhalten ergänzen (`go test ./...`).
+- `Changelog.md` und `version.go` aktualisieren.
 
 ## Commit-Nachrichten
 

@@ -1,9 +1,9 @@
 # ChurchTools_Invite
 
-[![Go Version](https://img.shields.io/github/go-mod/go-version/janmz/ChurchToolsInvite)](https://golang.org)
-[![Release](https://img.shields.io/github/v/release/janmz/ChurchToolsInvite)](https://github.com/janmz/ChurchToolsInvite/releases)
+[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://golang.org)
+[![Release](https://img.shields.io/badge/Release-GitHub-0077B6)](https://github.com/janmz/ChurchToolsInvite/releases)
 [![Lizenz: MIT (modifiziert)](https://img.shields.io/badge/Lizenz-MIT--Modified-blue.svg)](LICENSE)
-[![Unterstützung: CFI-Kinderhilfe](https://img.shields.io/badge/Unterstützung-CFI--Kinderhilfe-0077B6?logo=heart)](https://cfi-kinderhilfe.de/jetzt-spenden?q=VAYAMASSEN)
+[![Unterstützung: CFI-Kinderhilfe](https://img.shields.io/badge/Unterstützung-CFI--Kinderhilfe-0077B6?logo=heart)](https://cfi-kinderhilfe.de/jetzt-spenden?q=VAYACTINVITE)
 [![Build Status](https://github.com/janmz/ChurchToolsInvite/actions/workflows/ci.yml/badge.svg)](https://github.com/janmz/ChurchToolsInvite/actions/workflows/ci.yml)
 
 <p align="center">
@@ -211,6 +211,16 @@ Empfohlen vor dem ersten echten Versand. Alle Optionen von `invite`
 
 ## Entwicklung
 
+Unter Linux/macOS bauen Release-Artefakte ohne eingebettetes Datei-Icon (kein
+Standard für reine CLI-Binaries). Unter Windows wird bei Releases
+`vaya.ico` im Projektroot per
+[go-winres](https://github.com/tc-hib/go-winres) in die `.exe` eingebettet.
+
+**Tests:** Im Projektroot liefert nur `go test` keine Ergebnisse (dort liegt
+`package main` ohne Tests). Alle automatisierten Tests starten mit
+`go test ./...` — Details, Abdeckung und manuelle Abnahme gegen eine echte
+Instanz: [TESTING.de.md](TESTING.de.md).
+
 ```bash
 go test ./...
 go vet ./...
@@ -226,8 +236,9 @@ Beiträge sind willkommen! Bitte vor einem Pull Request
 
 Diese Software steht unter einer modifizierten MIT-Lizenz (siehe [LICENSE](LICENSE)).
 Du darfst den Code frei verwenden, anpassen und weitergeben, **solange** du
-den ursprünglichen Autor **Jan Neuhaus** nennst und einen Link auf das
-Original-Repository beibehältst: `https://github.com/janmz/ChurchToolsInvite`.
+den ursprünglichen Autor **Jan Neuhaus, VAYA Consulting** nennst und einen Link
+auf das Original-Repository beibehältst:
+`https://github.com/janmz/ChurchToolsInvite`.
 
 **Es wird keine Gewährleistung übernommen.**
 
@@ -239,7 +250,8 @@ Wenn dir das Projekt nützt, unterstütze bitte die **CFI-Kinderhilfe**:
 
 ## Kontakt
 
-**Autor**: Jan Neuhaus – [VAYA Consulting](https://vaya-consulting.de/development?q=GITHUB)
+**Autor**: Jan Neuhaus, VAYA Consulting –
+[VAYA Consulting](https://vaya-consulting.de/development?q=GITHUB)
 **Repository**: [https://github.com/janmz/ChurchToolsInvite](https://github.com/janmz/ChurchToolsInvite)
 
 ## Changelog

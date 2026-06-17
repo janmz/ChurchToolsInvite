@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.2.1.24] - 2026-06-17 10:04:31
+
+### Fixed
+
+- HTTP-401-Behandlung: höchstens ein Re-Login-Versuch pro API-Aufruf (keine
+  unbegrenzte Rekursion bei dauerhaftem 401)
+- Paginierung: Abbruch nach maximal 10.000 Seiten (Schutz vor Endlosschleifen
+  bei fehlerhaften API-Antworten)
+
+## [2.2.1.23] - 2026-06-17 09:47:50
+
+### Added
+
+- `TESTING.md` / `TESTING.de.md`: Teststrategie, `go test ./...`, Abgrenzung zu
+  manueller Prüfung gegen echte ChurchTools-Instanzen
+- Zusätzliche Unit-Tests: Einladungs-Logik (Live-Einladung, E-Mail-Konflikt,
+  Sync bei 403), CLI-Export-Hilfen, Terminal-Passwort (Pipe)
+
+### Changed
+
+- README: Hinweis, warum bloßes `go test` im Root keine Tests ausführt
+
 ## [2.2.0.21] - 2026-06-17 09:12:47
 
 ### Changed

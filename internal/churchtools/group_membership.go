@@ -45,7 +45,7 @@ func (c *Client) FindGroupByName(name string) (Group, error) {
 // RequestGroupMembership adds the person to a group or requests membership.
 func (c *Client) RequestGroupMembership(groupID, personID int) (MembershipRequestResult, error) {
 	path := fmt.Sprintf("/groups/%d/members/%d", groupID, personID)
-	statusCode, body, err := c.putAPI(path, map[string]any{})
+	statusCode, body, err := c.putAPI(path, map[string]any{}, true)
 	if err != nil {
 		return MembershipRequestResult{}, err
 	}
@@ -98,7 +98,7 @@ func waitingListFromBody(body []byte) bool {
 	return envelope.Data.WaitinglistPos != nil && *envelope.Data.WaitinglistPos > 0
 }
 
-func (c *Client) putAPI(path string, payload any) (int, []byte, error) {
+func (c *Client) putAPI(path string, payload any, allowRelogin bool) (int, []byte, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return 0, nil, err
@@ -119,10 +119,10 @@ func (c *Client) putAPI(path string, payload any) (int, []byte, error) {
 
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == http.StatusUnauthorized {
-		if err := c.relogin(); err != nil {
+		if err := c.reloginOnce(allowRelogin); err != nil {
 			return resp.StatusCode, respBody, err
 		}
-		return c.putAPI(path, payload)
+		return c.putAPI(path, payload, false)
 	}
 	return resp.StatusCode, respBody, nil
 }

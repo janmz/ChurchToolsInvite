@@ -9,6 +9,10 @@ import (
 
 // InvitePerson sends the ChurchTools system invitation e-mail via REST API.
 func (c *Client) InvitePerson(personID int) error {
+	return c.invitePerson(personID, true)
+}
+
+func (c *Client) invitePerson(personID int, allowRelogin bool) error {
 	path := "/persons/" + strconv.Itoa(personID) + "/invite"
 	req, err := http.NewRequest(http.MethodPost, c.apiURL(path), nil)
 	if err != nil {
@@ -24,10 +28,10 @@ func (c *Client) InvitePerson(personID int) error {
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == http.StatusUnauthorized {
-		if err := c.relogin(); err != nil {
+		if err := c.reloginOnce(allowRelogin); err != nil {
 			return err
 		}
-		return c.InvitePerson(personID)
+		return c.invitePerson(personID, false)
 	}
 	if resp.StatusCode == http.StatusNoContent {
 		return nil

@@ -9,6 +9,8 @@ import (
 	"strconv"
 )
 
+const maxAPIPages = 10_000
+
 // fetchAPIPages loads all pages from a paginated ChurchTools list endpoint.
 func (c *Client) fetchAPIPages(path string, query url.Values) ([]json.RawMessage, error) {
 	if query == nil {
@@ -22,6 +24,9 @@ func (c *Client) fetchAPIPages(path string, query url.Values) ([]json.RawMessage
 	var all []json.RawMessage
 
 	for {
+		if page > maxAPIPages {
+			return nil, fmt.Errorf("paginierung abgebrochen: mehr als %d seiten", maxAPIPages)
+		}
 		query.Set("page", strconv.Itoa(page))
 		body, err := c.getAPI(path, query)
 		if err != nil {
@@ -73,6 +78,10 @@ func (c *Client) fetchAPIList(path string, query url.Values) ([]json.RawMessage,
 }
 
 func (c *Client) getAPI(path string, query url.Values) ([]byte, error) {
+	return c.getAPIRetry(path, query, true)
+}
+
+func (c *Client) getAPIRetry(path string, query url.Values, allowRelogin bool) ([]byte, error) {
 	reqURL := c.apiURL(path)
 	if len(query) > 0 {
 		reqURL += "?" + query.Encode()
@@ -92,10 +101,10 @@ func (c *Client) getAPI(path string, query url.Values) ([]byte, error) {
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == http.StatusUnauthorized {
-		if err := c.relogin(); err != nil {
+		if err := c.reloginOnce(allowRelogin); err != nil {
 			return nil, err
 		}
-		return c.getAPI(path, query)
+		return c.getAPIRetry(path, query, false)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, &APIError{

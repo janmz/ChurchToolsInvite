@@ -13,6 +13,10 @@ const maxOAuthRedirects = 15
 
 // MeAPIToken returns the API login token for the current session.
 func (c *Client) MeAPIToken() (string, error) {
+	return c.meAPIToken(true)
+}
+
+func (c *Client) meAPIToken(allowRelogin bool) (string, error) {
 	req, err := http.NewRequest(http.MethodGet, c.apiURL("/person/me/apitoken"), nil)
 	if err != nil {
 		return "", err
@@ -27,10 +31,10 @@ func (c *Client) MeAPIToken() (string, error) {
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == http.StatusUnauthorized {
-		if err := c.relogin(); err != nil {
+		if err := c.reloginOnce(allowRelogin); err != nil {
 			return "", err
 		}
-		return c.MeAPIToken()
+		return c.meAPIToken(false)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return "", &APIError{

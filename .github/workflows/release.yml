@@ -74,6 +74,10 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "build_time=$(date -u '+%Y-%m-%d %H:%M:%S')" >> "$GITHUB_OUTPUT"
 
+      - name: Embed Windows icon
+        if: matrix.goos == 'windows'
+        run: bash scripts/embed-windows-icon.sh "${{ steps.version.outputs.version }}"
+
       - name: Build
         id: build
         env:
@@ -93,6 +97,7 @@ jobs:
           LDFLAGS="-s -w -X main.Version=${{ steps.version.outputs.version }} -X 'main.BuildTime=${{ steps.version.outputs.build_time }}'"
 
           go build -ldflags "$LDFLAGS" -o "dist/${PACKAGE}/${BINARY}" .
+          rm -f rsrc_windows_*.syso
           cp README.md LICENSE "dist/${PACKAGE}/"
 
           if [ "$GOOS" = "windows" ]; then

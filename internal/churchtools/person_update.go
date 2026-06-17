@@ -33,14 +33,14 @@ func (c *Client) UpdatePersonEmail(personID int, plan EmailSyncPlan) error {
 		payload["emails"] = emails
 	}
 
-	if err := c.patchPerson(personID, payload); err == nil {
+	if err := c.patchPerson(personID, payload, true); err == nil {
 		return nil
 	} else if len(plan.Emails) <= 1 {
 		return err
 	}
 
 	// Fallback for instances that only accept the legacy single email field.
-	if err := c.patchPerson(personID, map[string]any{"email": plan.Primary}); err != nil {
+	if err := c.patchPerson(personID, map[string]any{"email": plan.Primary}, true); err != nil {
 		return fmt.Errorf(
 			"e-mail aktualisieren fehlgeschlagen (mehrfach-adressen nicht unterstützt?): %w",
 			err,
@@ -49,7 +49,7 @@ func (c *Client) UpdatePersonEmail(personID int, plan EmailSyncPlan) error {
 	return nil
 }
 
-func (c *Client) patchPerson(personID int, payload map[string]any) error {
+func (c *Client) patchPerson(personID int, payload map[string]any, allowRelogin bool) error {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return err
@@ -71,10 +71,10 @@ func (c *Client) patchPerson(personID int, payload map[string]any) error {
 
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == http.StatusUnauthorized {
-		if err := c.relogin(); err != nil {
+		if err := c.reloginOnce(allowRelogin); err != nil {
 			return err
 		}
-		return c.patchPerson(personID, payload)
+		return c.patchPerson(personID, payload, false)
 	}
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return &APIError{

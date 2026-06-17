@@ -21,11 +21,13 @@ Or on Windows:
 scripts/ci.ps1
 ```
 
+Automated tests and manual acceptance: [TESTING.md](TESTING.md).
+
 ## Pull requests
 
 - Keep changes focused.
-- Add tests for new behaviour.
-- Update `Changelog.md` and bump `internal/version/version.go`.
+- Add tests for new behaviour (`go test ./...`).
+- Update `Changelog.md` and bump `version.go`.
 
 ## Commit messages
 

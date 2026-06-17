@@ -1,9 +1,9 @@
 # ChurchTools_Invite
 
-[![Go Version](https://img.shields.io/github/go-mod/go-version/janmz/ChurchToolsInvite)](https://golang.org)
-[![Release](https://img.shields.io/github/v/release/janmz/ChurchToolsInvite)](https://github.com/janmz/ChurchToolsInvite/releases)
+[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://golang.org)
+[![Release](https://img.shields.io/badge/Release-GitHub-0077B6)](https://github.com/janmz/ChurchToolsInvite/releases)
 [![License: MIT (Modified)](https://img.shields.io/badge/License-MIT--Modified-blue.svg)](LICENSE)
-[![Support: CFI-Kinderhilfe](https://img.shields.io/badge/Support-CFI--Kinderhilfe-0077B6?logo=heart)](https://cfi-kinderhilfe.de/jetzt-spenden?q=VAYAMASSEN)
+[![Support: CFI-Kinderhilfe](https://img.shields.io/badge/Support-CFI--Kinderhilfe-0077B6?logo=heart)](https://cfi-kinderhilfe.de/jetzt-spenden?q=VAYACTINVITE)
 [![Build Status](https://github.com/janmz/ChurchToolsInvite/actions/workflows/ci.yml/badge.svg)](https://github.com/janmz/ChurchToolsInvite/actions/workflows/ci.yml)
 
 <p align="center">
@@ -198,6 +198,14 @@ Recommended before the first real run. All invite options (`--reinvite`,
 
 ## Development
 
+Linux/macOS release binaries have no embedded file icon (not standard for CLI
+tools). Windows release builds embed project-root `vaya.ico` via
+[go-winres](https://github.com/tc-hib/go-winres).
+
+**Tests:** Running only `go test` in the repo root does nothing useful (`package
+main` has no tests). Use `go test ./...` — see [TESTING.md](TESTING.md) for
+coverage, conventions, and manual checks against a real ChurchTools instance.
+
 ```bash
 go test ./...
 go vet ./...
@@ -213,20 +221,21 @@ before creating a pull request.
 
 This software is under a modified MIT license (see [LICENSE](LICENSE)).
 You may freely use, modify, and distribute the code, **provided** you credit the
-original author **Jan Neuhaus** and maintain a link to the original repository:
-`https://github.com/janmz/ChurchToolsInvite`.
+original author **Jan Neuhaus, VAYA Consulting** and maintain a link to the
+original repository: `https://github.com/janmz/ChurchToolsInvite`.
 
 **No warranty** is provided.
 
 ## Support
 
 If you find this project helpful, please support **CFI-Kinderhilfe**:
-[https://cfi-kinderhilfe.de](https://cfi-kinderhilfe.de/jetzt-spenden?q=VAYAMASSEN)
+[https://cfi-kinderhilfe.de/jetzt-spenden?q=VAYACTINVITE](https://cfi-kinderhilfe.de/jetzt-spenden?q=VAYACTINVITE)
 (Donations go to CFI-Kinderhilfe, not the author.)
 
 ## Contact
 
-**Author**: Jan Neuhaus – [VAYA Consulting](https://vaya-consulting.de/development?q=GITHUB)
+**Author**: Jan Neuhaus, VAYA Consulting –
+[VAYA Consulting](https://vaya-consulting.de/development?q=GITHUB)
 **Repository**: [https://github.com/janmz/ChurchToolsInvite](https://github.com/janmz/ChurchToolsInvite)
 
 ## Changelog
