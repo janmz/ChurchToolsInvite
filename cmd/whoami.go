@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	churchtools "github.com/janmz/churchtools-invite/internal/churchtools"
 	config "github.com/janmz/churchtools-invite/internal/config"
 	"github.com/spf13/cobra"
 )
@@ -22,8 +21,8 @@ func runWhoAmI() error {
 		return err
 	}
 
-	client := churchtools.NewClient(cfg.BaseURL, cfg.LoginToken, cfg.Username, cfg.Password)
-	if err := client.Login(); err != nil {
+	client, err := connectChurchTools(cfg)
+	if err != nil {
 		return err
 	}
 
@@ -52,6 +51,6 @@ func runWhoAmI() error {
 		}
 	}
 
-	fmt.Printf("Instanz:     %s\n", cfg.BaseURL)
+	fmt.Printf("Instanz:     %s\n", client.BaseURL())
 	return nil
 }

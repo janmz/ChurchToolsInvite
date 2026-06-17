@@ -56,8 +56,8 @@ func runExport() error {
 		return err
 	}
 
-	client := churchtools.NewClient(cfg.BaseURL, cfg.LoginToken, cfg.Username, cfg.Password)
-	if err := client.Login(); err != nil {
+	client, err := connectChurchTools(cfg)
+	if err != nil {
 		return err
 	}
 

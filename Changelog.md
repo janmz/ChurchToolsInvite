@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.1.2.16] - 2026-06-17 08:20:05
+
+### Added
+
+- Login mit Benutzername/Passwort: bei URL-Muster `haupt-neben.church.tools`
+  automatischer Versuch auf der Hauptinstanz `haupt.church.tools`; Hinweis bei
+  erfolgreichem Wechsel (README: Haupt- und Nebeninstanz)
+
 ## [2.1.1.14] - 2026-06-16 22:12:13
 
 ### Fixed

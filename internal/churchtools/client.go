@@ -29,28 +29,43 @@ func (e *APIError) Error() string {
 
 // Client talks to ChurchTools REST and legacy AJAX APIs.
 type Client struct {
-	baseURL    string
-	loginToken string
-	username   string
-	password   string
-	http       *http.Client
-	csrfToken  string
-	personID   int
+	baseURL           string
+	configuredBaseURL string
+	loginToken        string
+	username          string
+	password          string
+	http              *http.Client
+	csrfToken         string
+	personID          int
+	loginRedirectNote string
 }
 
 // NewClient creates a client without authenticating yet.
 func NewClient(baseURL, loginToken, username, password string) *Client {
 	jar, _ := cookiejar.New(nil)
+	normalized := normalizeInstanceURL(baseURL)
 	return &Client{
-		baseURL:    strings.TrimSuffix(strings.TrimSpace(baseURL), "/"),
-		loginToken: strings.TrimSpace(loginToken),
-		username:   strings.TrimSpace(username),
-		password:   strings.TrimSpace(password),
+		baseURL:           normalized,
+		configuredBaseURL: normalized,
+		loginToken:        strings.TrimSpace(loginToken),
+		username:          strings.TrimSpace(username),
+		password:          strings.TrimSpace(password),
 		http: &http.Client{
 			Timeout: 60 * time.Second,
 			Jar:     jar,
 		},
 	}
+}
+
+// BaseURL returns the ChurchTools instance URL used for API calls.
+func (c *Client) BaseURL() string {
+	return c.baseURL
+}
+
+// LoginRedirectNote is non-empty when password login succeeded on the main
+// instance instead of the configured sub-instance URL.
+func (c *Client) LoginRedirectNote() string {
+	return c.loginRedirectNote
 }
 
 // Login authenticates and loads a CSRF token for legacy calls.
@@ -104,6 +119,24 @@ func (c *Client) authenticateWithToken() error {
 }
 
 func (c *Client) authenticateWithPassword() error {
+	err := c.postPasswordLogin(c.baseURL)
+	if err == nil {
+		return c.finishPasswordLogin()
+	}
+
+	if mainURL, ok := MainInstanceURL(c.configuredBaseURL); ok && mainURL != c.baseURL {
+		if mainErr := c.postPasswordLogin(mainURL); mainErr == nil {
+			c.baseURL = mainURL
+			c.resetHTTPClient()
+			c.loginRedirectNote = MainInstanceLoginNote(c.configuredBaseURL, mainURL)
+			return c.finishPasswordLogin()
+		}
+	}
+
+	return err
+}
+
+func (c *Client) postPasswordLogin(baseURL string) error {
 	payload, err := json.Marshal(map[string]string{
 		"username": c.username,
 		"password": c.password,
@@ -112,7 +145,7 @@ func (c *Client) authenticateWithPassword() error {
 		return err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.apiURL("/login"), bytes.NewReader(payload))
+	req, err := http.NewRequest(http.MethodPost, passwordLoginURL(baseURL), bytes.NewReader(payload))
 	if err != nil {
 		return err
 	}
@@ -132,13 +165,28 @@ func (c *Client) authenticateWithPassword() error {
 			Body:       string(body),
 		}
 	}
+	return nil
+}
 
+func (c *Client) finishPasswordLogin() error {
 	user, err := c.WhoAmI()
 	if err != nil {
 		return err
 	}
 	c.personID = user.ID
 	return nil
+}
+
+func (c *Client) resetHTTPClient() {
+	jar, _ := cookiejar.New(nil)
+	c.http = &http.Client{
+		Timeout: 60 * time.Second,
+		Jar:     jar,
+	}
+}
+
+func passwordLoginURL(baseURL string) string {
+	return strings.TrimSuffix(baseURL, "/") + "/api/login"
 }
 
 func (c *Client) fetchCSRFToken() (string, error) {

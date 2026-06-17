@@ -123,6 +123,21 @@ Login-Token beschaffen:
 .\churchtools-invite.exe setup token
 ```
 
+### Haupt- und Nebeninstanz
+
+Bei ChurchTools-Mandanten mit mehreren Standorten kann die URL einer
+Nebeninstanz so aussehen: `https://haupt-neben.church.tools` (Beispiel:
+`https://emk-rheinmain.church.tools`). Benutzerkonten liegen oft auf der
+**Hauptinstanz** `https://haupt.church.tools` (Beispiel:
+`https://emk.church.tools`), auch wenn in der Konfiguration die Nebeninstanz
+steht.
+
+Schlägt die Anmeldung mit Benutzername/Passwort auf der konfigurierten URL fehl
+und die Adresse entspricht dem Muster `haupt-neben.church.tools`, versucht das
+Tool automatisch die Anmeldung auf `https://haupt.church.tools`. Bei Erfolg
+erscheint eine Meldung, dass auf die Hauptinstanz gewechselt wurde. API-Aufrufe
+laufen danach über die Hauptinstanz. Ein Login-Token ist davon nicht betroffen.
+
 Berechtigungen prüfen:
 
 ```bash

@@ -86,8 +86,8 @@ func runSetupInit() error {
 		cfg.LoginToken = strings.TrimSpace(token)
 	}
 
-	client := churchtools.NewClient(cfg.BaseURL, cfg.LoginToken, cfg.Username, cfg.Password)
-	if err := client.Login(); err != nil {
+	client, err := connectChurchTools(cfg)
+	if err != nil {
 		return fmt.Errorf("verbindungstest fehlgeschlagen: %w", err)
 	}
 
@@ -126,8 +126,8 @@ func runSetupTest() error {
 		return err
 	}
 
-	client := churchtools.NewClient(cfg.BaseURL, cfg.LoginToken, cfg.Username, cfg.Password)
-	if err := client.Login(); err != nil {
+	client, err := connectChurchTools(cfg)
+	if err != nil {
 		return fmt.Errorf("login fehlgeschlagen: %w", err)
 	}
 	if err := client.Ping(); err != nil {
@@ -150,8 +150,8 @@ func runSetupToken() error {
 		return err
 	}
 
-	client := churchtools.NewClient(cfg.BaseURL, cfg.LoginToken, cfg.Username, cfg.Password)
-	if err := client.Login(); err != nil {
+	client, err := connectChurchTools(cfg)
+	if err != nil {
 		return err
 	}
 
@@ -180,8 +180,8 @@ func runSetupPermissions() error {
 		return err
 	}
 
-	client := churchtools.NewClient(cfg.BaseURL, cfg.LoginToken, cfg.Username, cfg.Password)
-	if err := client.Login(); err != nil {
+	client, err := connectChurchTools(cfg)
+	if err != nil {
 		return err
 	}
 

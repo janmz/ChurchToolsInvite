@@ -105,6 +105,20 @@ Obtain a login token:
 ./churchtools-invite setup token
 ```
 
+### Main and sub-instance
+
+In multi-campus ChurchTools setups, a sub-instance URL may look like
+`https://main-sub.church.tools` (e.g. `https://emk-rheinmain.church.tools`).
+User accounts are often registered on the **main instance**
+`https://main.church.tools` (e.g. `https://emk.church.tools`) even when the
+config points at a sub-instance URL.
+
+If username/password login fails on the configured URL and the host matches
+`main-sub.church.tools`, the tool automatically tries
+`https://main.church.tools`. On success it prints a note that it switched to
+the main instance; subsequent API calls use that URL. Login-token auth is
+unchanged.
+
 Check permissions:
 
 ```bash

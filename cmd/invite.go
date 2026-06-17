@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	churchtools "github.com/janmz/churchtools-invite/internal/churchtools"
 	config "github.com/janmz/churchtools-invite/internal/config"
 	csvfile "github.com/janmz/churchtools-invite/internal/csvfile"
 	invite "github.com/janmz/churchtools-invite/internal/invite"
@@ -54,8 +53,8 @@ func runInvite() error {
 		return err
 	}
 
-	client := churchtools.NewClient(cfg.BaseURL, cfg.LoginToken, cfg.Username, cfg.Password)
-	if err := client.Login(); err != nil {
+	client, err := connectChurchTools(cfg)
+	if err != nil {
 		return err
 	}
 
