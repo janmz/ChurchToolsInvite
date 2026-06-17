@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.3.1.32] - 2026-06-17 10:28:25
+
+### Fixed
+
+- `embed-windows-icon.sh`: `go-winres` für den CI-Host installieren (nicht mit
+  `GOOS=windows` — sonst `go-winres.exe`, auf Linux nicht ausführbar)
+
 ## [2.3.0.30] - 2026-06-17 10:25:39
 
 ### Fixed
