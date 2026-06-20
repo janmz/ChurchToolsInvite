@@ -19,29 +19,48 @@ type Config struct {
 	Password         string           `json:"password,omitempty"`
 	DelayMS          int              `json:"delay_ms,omitempty"`
 	CampusID         int              `json:"campus_id,omitempty"`
-	PermissionGroups PermissionGroups `json:"permission_groups,omitempty"`
+	PreJoinGroups    string           `json:"pre_join_groups,omitempty"`
 }
 
-// PermissionGroups names ChurchTools groups used to request missing rights.
-type PermissionGroups struct {
-	EditPersons   string `json:"edit_persons,omitempty"`
-	ExportPersons string `json:"export_persons,omitempty"`
+// DefaultEditPersonsGroups are candidate groups for write/admin permissions.
+var DefaultEditPersonsGroups = []string{
+	"Personen Administration",
+	"Personen bearbeiten",
 }
 
-// EditPersonsGroupName returns the group for write access.
-func (c Config) EditPersonsGroupName() string {
-	if name := strings.TrimSpace(c.PermissionGroups.EditPersons); name != "" {
-		return name
+// DefaultExportPersonsGroups are candidate groups for export permission.
+var DefaultExportPersonsGroups = []string{
+	"Personen exportieren",
+}
+
+// DefaultPreJoinGroups is the comma-separated list of groups joined before export/invite.
+const DefaultPreJoinGroups = "ChurchTools Admin,ChurchTools Verwaltung,Personen Administration,Personen verwalten"
+
+// ParseCommaSeparatedNames splits a comma-separated list and trims empty entries.
+func ParseCommaSeparatedNames(raw string) []string {
+	parts := strings.Split(raw, ",")
+	names := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		names = append(names, part)
 	}
-	return "Personen bearbeiten"
+	return names
 }
 
-// ExportPersonsGroupName returns the group for export permission.
-func (c Config) ExportPersonsGroupName() string {
-	if name := strings.TrimSpace(c.PermissionGroups.ExportPersons); name != "" {
-		return name
+// PreJoinGroupNames returns groups to join in order before export/invite.
+// Set pre_join_groups to "-" or "none" to disable.
+func (c Config) PreJoinGroupNames() []string {
+	raw := strings.TrimSpace(c.PreJoinGroups)
+	if raw == "-" || strings.EqualFold(raw, "none") {
+		return nil
 	}
-	return "Personen exportieren"
+	if raw == "" {
+		return ParseCommaSeparatedNames(DefaultPreJoinGroups)
+	}
+	return ParseCommaSeparatedNames(raw)
 }
 
 // Load reads configuration from a JSON file and applies environment overrides.
@@ -117,6 +136,9 @@ func (c *Config) applyEnv() {
 	}
 	if v := strings.TrimSpace(os.Getenv("CT_PASSWORD")); v != "" {
 		c.Password = v
+	}
+	if v := strings.TrimSpace(os.Getenv("CT_PRE_JOIN_GROUPS")); v != "" {
+		c.PreJoinGroups = v
 	}
 }
 

@@ -65,6 +65,28 @@ func TestHasChurchToolsAccount(t *testing.T) {
 	}
 }
 
+func TestExportStatusLabel(t *testing.T) {
+	trueVal := true
+	cases := []struct {
+		name   string
+		person churchtools.Person
+		want   string
+	}{
+		{name: "new", person: churchtools.Person{}, want: "NEU"},
+		{name: "pending", person: churchtools.Person{InvitationStatus: "pending"}, want: "Eingeladen"},
+		{name: "accepted", person: churchtools.Person{InvitationStatus: "accepted"}, want: "Registriert"},
+		{name: "system user", person: churchtools.Person{IsSystemUser: &trueVal}, want: "Registriert"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.person.ExportStatusLabel(); got != tc.want {
+				t.Fatalf("ExportStatusLabel() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestPrivacyPolicyAgreementUnmarshalArray(t *testing.T) {
 	var person churchtools.Person
 	if err := json.Unmarshal([]byte(`{

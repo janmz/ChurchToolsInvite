@@ -2,6 +2,7 @@ package churchtools
 
 import (
 	"fmt"
+	"strings"
 )
 
 const (
@@ -50,7 +51,7 @@ func (c *Client) HasModulePermission(module, name string) (bool, error) {
 type PermissionRequirement struct {
 	Module      string
 	Permission  string
-	GroupName   string
+	GroupNames  []string
 	Description string
 }
 
@@ -73,7 +74,7 @@ type MembershipRequestResult struct {
 func (c *Client) EnsurePermissions(reqs []PermissionRequirement) ([]string, error) {
 	perms, err := c.GlobalPermissions()
 	if err != nil {
-		return nil, fmt.Errorf("berechtigungen laden: %w", err)
+		return nil, fmt.Errorf("Berechtigungen laden: %w", err)
 	}
 
 	personID := c.PersonID()
@@ -87,19 +88,19 @@ func (c *Client) EnsurePermissions(reqs []PermissionRequirement) ([]string, erro
 
 	var notes []string
 	requested := false
+	activeMembership := make(map[string]bool)
 
 	for _, req := range reqs {
 		if HasModulePermission(perms, req.Module, req.Permission) {
 			continue
 		}
 
-		group, err := c.FindGroupByName(req.GroupName)
+		group, groupName, err := c.FindGroupByNames(req.GroupNames)
 		if err != nil {
 			notes = append(notes, fmt.Sprintf(
-				"%s fehlt; gruppe %q nicht gefunden (%v)",
+				"%s fehlt; keine passende Gruppe gefunden (%s)",
 				req.Description,
-				req.GroupName,
-				err,
+				formatGroupNames(req.GroupNames),
 			))
 			continue
 		}
@@ -107,9 +108,9 @@ func (c *Client) EnsurePermissions(reqs []PermissionRequirement) ([]string, erro
 		result, err := c.RequestGroupMembership(group.ID, personID)
 		if err != nil {
 			notes = append(notes, fmt.Sprintf(
-				"%s fehlt; anfrage für gruppe %q fehlgeschlagen: %v",
+				"%s fehlt; Anfrage für Gruppe %q fehlgeschlagen: %v",
 				req.Description,
-				req.GroupName,
+				groupName,
 				err,
 			))
 			continue
@@ -118,26 +119,27 @@ func (c *Client) EnsurePermissions(reqs []PermissionRequirement) ([]string, erro
 
 		switch result.Status {
 		case MembershipActive:
+			activeMembership[req.Permission] = true
 			notes = append(notes, fmt.Sprintf(
-				"%s fehlte; mitgliedschaft in %q hergestellt",
+				"%s: Mitgliedschaft in %q aktiv (Berechtigung ggf. erst nach erneutem Login)",
 				req.Description,
-				req.GroupName,
+				groupName,
 			))
 		case MembershipRequested:
 			notes = append(notes, fmt.Sprintf(
-				"%s fehlt; mitgliedschaft in %q beantragt (freigabe durch administrator nötig)",
+				"%s fehlt; Mitgliedschaft in %q beantragt (Freigabe durch Administrator nötig)",
 				req.Description,
-				req.GroupName,
+				groupName,
 			))
 		default:
 			msg := result.Message
 			if msg == "" {
-				msg = "anfrage abgelehnt"
+				msg = "Anfrage abgelehnt"
 			}
 			notes = append(notes, fmt.Sprintf(
-				"%s fehlt; mitgliedschaft in %q nicht möglich: %s",
+				"%s fehlt; Mitgliedschaft in %q nicht möglich: %s",
 				req.Description,
-				req.GroupName,
+				groupName,
 				msg,
 			))
 		}
@@ -156,11 +158,18 @@ func (c *Client) EnsurePermissions(reqs []PermissionRequirement) ([]string, erro
 		if HasModulePermission(perms, req.Module, req.Permission) {
 			continue
 		}
+		if activeMembership[req.Permission] {
+			continue
+		}
 		notes = append(notes, fmt.Sprintf(
-			"%s weiterhin nicht aktiv (evtl. wartet freigabe)",
+			"%s weiterhin nicht aktiv (evtl. wartet Freigabe)",
 			req.Description,
 		))
 	}
 
 	return notes, nil
+}
+
+func formatGroupNames(names []string) string {
+	return strings.Join(names, " / ")
 }

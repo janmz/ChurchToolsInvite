@@ -12,6 +12,28 @@ import (
 
 var htmlTagPattern = regexp.MustCompile(`<[^>]*>`)
 
+// FindGroupByNames returns the first matching group from the candidate names.
+func (c *Client) FindGroupByNames(names []string) (Group, string, error) {
+	seen := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		key := strings.ToLower(name)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+
+		group, err := c.FindGroupByName(name)
+		if err == nil {
+			return group, name, nil
+		}
+	}
+	return Group{}, "", fmt.Errorf("keine passende Gruppe gefunden")
+}
+
 // FindGroupByName returns a group whose name matches the requested permission group.
 func (c *Client) FindGroupByName(name string) (Group, error) {
 	name = strings.TrimSpace(name)

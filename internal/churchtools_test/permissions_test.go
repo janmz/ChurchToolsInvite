@@ -76,7 +76,7 @@ func TestEnsurePermissionsRequestsGroupMembership(t *testing.T) {
 		{
 			Module:      churchtools.ModuleChurchDB,
 			Permission:  churchtools.PermExportData,
-			GroupName:   "Personen exportieren",
+			GroupNames:  []string{"Personen exportieren"},
 			Description: "Personen exportieren",
 		},
 	})

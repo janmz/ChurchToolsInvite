@@ -1,7 +1,6 @@
 package csvfile
 
 import (
-	"encoding/csv"
 	"errors"
 	"fmt"
 	"io"
@@ -16,7 +15,9 @@ type Entry struct {
 	PersonID  int
 	FirstName string
 	LastName  string
+	Campus    string // export only; ignored on invite import
 	Email     string
+	Status    string // export only; ignored on invite import
 }
 
 var idColumns = []string{"id", "person_id", "personid", "ct_id", "churchtools_id"}
@@ -26,15 +27,15 @@ var emailColumns = []string{"email", "e-mail", "mail"}
 
 // Read parses a CSV file and returns person entries.
 func Read(path string) ([]Entry, error) {
-	file, err := os.Open(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("csv öffnen: %w", err)
 	}
-	defer file.Close()
 
-	reader := csv.NewReader(file)
-	reader.TrimLeadingSpace = true
-	reader.FieldsPerRecord = -1
+	reader, err := newCSVReader(data)
+	if err != nil {
+		return nil, err
+	}
 
 	header, err := reader.Read()
 	if err != nil {

@@ -11,18 +11,20 @@ import (
 func interactiveExportOptions(client *churchtools.Client, cfg *config.Config) (churchtools.PersonListOptions, error) {
 	opts := churchtools.PersonListOptions{}
 
-	campusID, err := ensureCampusID(client, cfg)
+	choice, err := promptExportCampus(client)
 	if err != nil {
 		return churchtools.PersonListOptions{}, err
 	}
+	applyCampusChoice(&opts, choice)
 
-	if campusID > 0 {
-		opts.CampusID = campusID
-		name := campusDisplayName(client, campusID)
+	if choice.all {
+		fmt.Print("\nExport: alle Standorte")
+	} else {
+		name := campusDisplayName(client, choice.campusID)
 		if name != "" {
-			fmt.Printf("\nStandort: %s (ID %d)\n", name, campusID)
+			fmt.Printf("\nStandort: %s (ID %d)", name, choice.campusID)
 		} else {
-			fmt.Printf("\nStandort: ID %d\n", campusID)
+			fmt.Printf("\nStandort: ID %d", choice.campusID)
 		}
 	}
 
@@ -47,7 +49,7 @@ func interactiveExportOptions(client *churchtools.Client, cfg *config.Config) (c
 		}
 		opts.StatusID = statusID
 	case "group":
-		groups, err := client.ListGroups(churchtools.GroupListOptions{CampusID: campusID})
+		groups, err := client.ListGroups(churchtools.GroupListOptions{CampusID: opts.CampusID})
 		if err != nil {
 			return churchtools.PersonListOptions{}, err
 		}
@@ -91,8 +93,8 @@ func campusName(campuses []churchtools.Campus, id int) string {
 	return fmt.Sprintf("ID %d", id)
 }
 
-func describeExportFilters(opts churchtools.PersonListOptions) string {
-	parts := make([]string, 0, 3)
+func describeExportFilters(opts churchtools.PersonListOptions, includeInvited bool) string {
+	parts := make([]string, 0, 4)
 	if opts.CampusID > 0 {
 		parts = append(parts, fmt.Sprintf("Standort-ID %d", opts.CampusID))
 	}
@@ -101,6 +103,9 @@ func describeExportFilters(opts churchtools.PersonListOptions) string {
 	}
 	if opts.GroupID > 0 {
 		parts = append(parts, fmt.Sprintf("Gruppe-ID %d", opts.GroupID))
+	}
+	if !includeInvited {
+		parts = append(parts, "nur NEU")
 	}
 	if len(parts) == 0 {
 		return "alle Personen"

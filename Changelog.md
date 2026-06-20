@@ -2,6 +2,50 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.5.0.39] - 2026-06-20 08:59:33
+
+### Added
+
+- Export-Spalte `standort` (nach `email`) mit Standortnamen aus ChurchTools
+
+### Removed
+
+- Konfiguration `permission_groups` entfernt; fehlende Export-/Schreib-Rechte
+  werden weiterhin automatisch über feste Fallback-Gruppen beantragt
+  (`Personen exportieren` bzw. `Personen Administration` / `Personen bearbeiten`),
+  Vorab-Beitritt über `pre_join_groups`
+
+## [2.5.0.38] - 2026-06-20 08:56:05
+
+### Added
+
+- `export --invited` / `-i`: auch bereits eingeladene und registrierte Personen
+  exportieren
+- Export-Spalte `status` mit `NEU`, `Eingeladen`, `Registriert`
+
+### Changed
+
+- `export`: standardmäßig nur Personen mit Status `NEU` (noch nicht eingeladen)
+- `export --campus-id` durch `--campus` ersetzt: numerische ID, `all` oder
+  eindeutiger Namens-Teilstring (Kleinbuchstaben, Suchstring nur `a`–`z`)
+- `export --interactive` ohne Kurzoption `-i` (`-i` ist jetzt `--invited`)
+
+## [2.5.0.37] - 2026-06-19 17:51:06
+
+### Added
+
+- Vorab-Gruppen (`pre_join_groups`): vor Export/Invite nacheinander Gruppen
+  beitreten, wenn noch nicht Mitglied; `setup init`-Abfrage; `--skip-pre-join-groups`
+- `export --campus-id all` (auch `alle`, `*`); Alias zu `--all-campuses`
+- CSV-Import: UTF-8-BOM und Trennzeichen `,` / `;` / Tab automatisch erkannt
+
+### Changed
+
+- Berechtigungen: mehrere Fallback-Gruppen (`FindGroupByNames`); Export/Invite
+  nutzen `EditPersonsGroupNames` / `ExportPersonsGroupNames`
+- `export -i`: zeigt immer Standort-Menü inkl. „Alle Standorte“ (nicht nur bei
+  fehlendem Benutzer-Standort)
+
 ## [2.3.2.32] - 2026-06-17 10:28:25
 
 ### Fixed

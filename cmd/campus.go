@@ -83,3 +83,15 @@ func campusDisplayName(client *churchtools.Client, campusID int) string {
 	}
 	return campusName(campuses, campusID)
 }
+
+func campusNameMap(client *churchtools.Client) (map[int]string, error) {
+	campuses, err := client.ListCampuses()
+	if err != nil {
+		return nil, err
+	}
+	names := make(map[int]string, len(campuses))
+	for _, campus := range campuses {
+		names[campus.ID] = campus.Name
+	}
+	return names, nil
+}

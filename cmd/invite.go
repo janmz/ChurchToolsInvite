@@ -17,6 +17,7 @@ var (
 	delayMS               int
 	noSyncEmail           bool
 	skipPermissionRequest bool
+	skipPreJoin           bool
 	reinvite              bool
 )
 
@@ -32,6 +33,7 @@ func init() {
 	inviteCmd.Flags().StringVarP(&csvPath, "csv", "f", "", "Pfad zur CSV-Datei (Pflicht)")
 	inviteCmd.Flags().IntVar(&delayMS, "delay-ms", 0, "Pause zwischen Einladungen in Millisekunden (0 = config.delay_ms)")
 	inviteCmd.Flags().BoolVar(&skipPermissionRequest, "skip-permission-request", false, "Keine Gruppenmitgliedschaft für fehlende Berechtigungen beantragen")
+	inviteCmd.Flags().BoolVar(&skipPreJoin, "skip-pre-join-groups", false, "Keine Vorab-Gruppen vor dem Invite beitreten")
 	inviteCmd.Flags().BoolVar(&reinvite, "reinvite", false, "Bereits eingeladene Personen erneut einladen (Standard: überspringen)")
 	inviteCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Prüfen/simulieren ohne Einladungen zu senden oder ChurchTools zu ändern")
 	inviteCmd.Flags().BoolVar(&noSyncEmail, "no-sync-email", false, "E-Mail aus CSV nicht nach ChurchTools übernehmen")
@@ -56,6 +58,12 @@ func runInvite() error {
 	client, err := connectChurchTools(cfg)
 	if err != nil {
 		return err
+	}
+
+	if !skipPreJoin {
+		if err := ensurePreJoinGroups(client, cfg); err != nil {
+			return err
+		}
 	}
 
 	if !skipPermissionRequest {

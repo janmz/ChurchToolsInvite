@@ -10,24 +10,38 @@ import (
 	churchtools "github.com/janmz/churchtools-invite/internal/churchtools"
 )
 
-// ExportHeader is the canonical CSV header for invite/export files.
-var ExportHeader = []string{"id", "vorname", "nachname", "email"}
+// ExportHeader is the canonical CSV header for export files.
+var ExportHeader = []string{"id", "vorname", "nachname", "email", "standort", "status"}
 
 // EntryFromPerson maps a ChurchTools person to an export row.
-func EntryFromPerson(person churchtools.Person) Entry {
+func EntryFromPerson(person churchtools.Person, campusNames map[int]string) Entry {
 	return Entry{
 		PersonID:  person.ID,
 		FirstName: person.FirstName,
 		LastName:  person.LastName,
+		Campus:    campusNameForPerson(person, campusNames),
 		Email:     person.Email,
+		Status:    person.ExportStatusLabel(),
 	}
 }
 
+func campusNameForPerson(person churchtools.Person, campusNames map[int]string) string {
+	if campusNames != nil {
+		if name := campusNames[person.CampusID]; name != "" {
+			return name
+		}
+	}
+	if person.CampusID > 0 {
+		return strconv.Itoa(person.CampusID)
+	}
+	return ""
+}
+
 // EntriesFromPersons converts ChurchTools persons to export rows.
-func EntriesFromPersons(persons []churchtools.Person) []Entry {
+func EntriesFromPersons(persons []churchtools.Person, campusNames map[int]string) []Entry {
 	entries := make([]Entry, len(persons))
 	for i, person := range persons {
-		entries[i] = EntryFromPerson(person)
+		entries[i] = EntryFromPerson(person, campusNames)
 	}
 	return entries
 }
@@ -63,6 +77,8 @@ func WriteTo(w io.Writer, entries []Entry) error {
 			entry.FirstName,
 			entry.LastName,
 			entry.Email,
+			entry.Campus,
+			entry.Status,
 		}); err != nil {
 			return fmt.Errorf("zeile schreiben: %w", err)
 		}

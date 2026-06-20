@@ -139,3 +139,21 @@ func TestLoadAppliesEnvInstanceName(t *testing.T) {
 		t.Fatalf("base url = %q", loaded.BaseURL)
 	}
 }
+
+func TestPreJoinGroupNamesDefaults(t *testing.T) {
+	cfg := config.Config{}
+	names := cfg.PreJoinGroupNames()
+	if len(names) != 4 {
+		t.Fatalf("names = %v", names)
+	}
+	if names[3] != "Personen verwalten" {
+		t.Fatalf("last name = %q", names[3])
+	}
+}
+
+func TestPreJoinGroupNamesDisabled(t *testing.T) {
+	cfg := config.Config{PreJoinGroups: "-"}
+	if got := cfg.PreJoinGroupNames(); got != nil {
+		t.Fatalf("disabled = %v", got)
+	}
+}

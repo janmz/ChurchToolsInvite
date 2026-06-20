@@ -40,6 +40,7 @@ func (p *PrivacyPolicyAgreement) UnmarshalJSON(data []byte) error {
 	*p = PrivacyPolicyAgreement(item)
 	return nil
 }
+
 // HasChurchToolsAccount reports whether the person already has or was invited to
 // a ChurchTools user account.
 func (p Person) HasChurchToolsAccount() bool {
@@ -66,6 +67,20 @@ func (p Person) HasChurchToolsAccount() bool {
 		return true
 	}
 	return false
+}
+
+// ExportStatusLabel is the invitation status written to export CSV rows.
+func (p Person) ExportStatusLabel() string {
+	switch normalizeInvitationStatus(p.InvitationStatus) {
+	case "pending":
+		return "Eingeladen"
+	case "accepted":
+		return "Registriert"
+	}
+	if p.HasChurchToolsAccount() {
+		return "Registriert"
+	}
+	return "NEU"
 }
 
 // AccountStatusLabel describes why a person is treated as already invited.
