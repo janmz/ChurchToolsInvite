@@ -46,6 +46,31 @@ func promptMenu(title string, items []menuItem, allowSkip bool) (int, error) {
 	return items[choice-1].id, nil
 }
 
+func promptExportInviteStatus() (exportInviteFilter, error) {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Println("\nEinladungsstatus:")
+	fmt.Println("  [n] Neu (noch nicht eingeladen)")
+	fmt.Println("  [e] Eingeladen")
+	fmt.Println("  [r] Registriert")
+	fmt.Print("Auswahl [n/e/r]: ")
+
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return exportInviteFilterNEU, err
+	}
+
+	switch strings.ToLower(strings.TrimSpace(line)) {
+	case "", "n", "neu":
+		return exportInviteFilterNEU, nil
+	case "e", "eingeladen":
+		return exportInviteFilterEingeladen, nil
+	case "r", "registriert":
+		return exportInviteFilterRegistriert, nil
+	default:
+		return exportInviteFilterNEU, fmt.Errorf("ungültige einladungsstatus-auswahl")
+	}
+}
+
 func promptFilterMode() (string, error) {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("\nZusätzlicher Filter:")

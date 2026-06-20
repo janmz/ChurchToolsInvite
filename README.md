@@ -20,8 +20,8 @@ invitations** from a CSV file, including:
   persons not yet invited
 - Setup, dry-run and permission helpers
 - Skip already invited persons by default; if the CSV e-mail differs, update
-  the address and invite again (`--reinvite` forces invite even when the
-  e-mail matches)
+  the address and invite again (`--reinvite` re-sends to persons with status
+  **Eingeladen** only; **Registriert** is always skipped)
 
 ## Features
 
@@ -33,8 +33,8 @@ invitations** from a CSV file, including:
 - Dry-run mode to check CSV and person data before sending
 - Sync CSV e-mail to ChurchTools when it differs (old address kept as additional)
 - Skip already invited persons when the e-mail matches; if the CSV e-mail
-  differs, update and invite again; use `--reinvite` to invite all already
-  invited persons again
+  differs, update and invite again; `--reinvite` re-sends to **Eingeladen**
+  only (persons with status **Registriert** are never invited again)
 - Automatic group membership request when export or e-mail sync permissions
   are missing
 
@@ -152,16 +152,17 @@ By default, **only persons who have not been invited yet** are exported. Use
 `-i` or `--invited` to include already invited or registered persons as well.
 
 ```csv
-id,vorname,nachname,email,status
-123,Max,Muster,max@example.org,NEU
-456,Anna,Beispiel,anna@example.org,Eingeladen
-789,Tim,Test,tim@example.org,Registriert
+id,vorname,nachname,email,standort,status
+123,Max,Muster,max@example.org,Rhein-Main,NEU
+456,Anna,Beispiel,anna@example.org,Rhein-Main,Eingeladen
+789,Tim,Test,tim@example.org,Rhein-Main,Registriert
 ```
 
 - `status` column: `NEU` (not yet invited), `Eingeladen` (invitation pending)
   or `Registriert` (ChurchTools account already accepted)
-- Columns `id`, `vorname`, `nachname`, `email` are the invite CSV; `status` is
-  for manual review and is ignored on import with `invite`
+- `standort` column: campus name from ChurchTools (export only)
+- Columns `id`, `vorname`, `nachname`, `email` are the invite CSV; `standort`
+  and `status` are for manual review and are ignored on import with `invite`
 
 **Campus:** `--campus` is **only required** when you do **not** want to export
 for your **own** campus, or when your user account has **no** campus assigned.
@@ -198,7 +199,7 @@ id,vorname,nachname,email
 - `id` column is required (also: `person_id`, `ct_id`)
 - Name and e-mail columns are optional; e-mail is used to update ChurchTools
   before inviting when it differs from the stored address
-- Extra columns such as `status` from export are ignored
+- Extra columns such as `standort` and `status` from export are ignored
 
 ### Dry-run – Check before sending
 
@@ -209,7 +210,9 @@ For each CSV row it verifies:
 - Does the person ID exist in ChurchTools?
 - Is the person already invited? Detected e.g. via `invitationStatus`
   (`accepted`, `pending`). By default: skip if the CSV e-mail matches
-  ChurchTools; if it differs, simulate e-mail update and re-invite
+  ChurchTools; if it differs, simulate e-mail update and re-invite.
+  **Registriert** persons are always skipped; `--reinvite` applies only to
+  **Eingeladen**
 - Is there an invitation e-mail (CSV and/or ChurchTools)?
 - Would an e-mail sync from the CSV be required?
 
@@ -227,10 +230,10 @@ Recommended before the first real run. All invite options (`--reinvite`,
 | `setup test` | Test login and connection |
 | `setup token` | Show login token |
 | `setup permissions` | List invite-related permissions |
-| `whoami` | Show logged-in user, campus ID and effective instance URL |
+| `whoami` | Show logged-in user, campus, group memberships (sorted by name, format `Name  ID`) and instance URL |
 | `export -o FILE` | Export persons to invite CSV format (default `personen.csv`; `-` = stdout); by default only not-yet-invited persons |
-| `export -i` / `--invited` | Also export already invited and registered persons |
-| `export --interactive` | Choose campus and filters interactively (campus menu incl. “All campuses”) |
+| `export -i` / `--invited` | Export all invitation statuses (NEU, Eingeladen, Registriert) |
+| `export --interactive` | Choose campus, optional filters (person status, group) and invitation status (`[n]` Neu, `[e]` Eingeladen, `[r]` Registriert) |
 | `export --campus VALUE` | Campus by ID or unique name substring (see CSV format); only needed for a different campus or when the user has no campus |
 | `export --campus all` | All campuses (alias for `--all-campuses`) |
 | `export --all-campuses` | No campus filter |
@@ -242,7 +245,7 @@ Recommended before the first real run. All invite options (`--reinvite`,
 | `invite -f FILE --dry-run` | Check/simulate without sending (see above) |
 | `invite -f FILE --delay-ms MS` | Delay between invitations (0 = `delay_ms` from config) |
 | `invite -f FILE --no-sync-email` | Skip CSV e-mail sync (mismatched e-mail → error) |
-| `invite -f FILE --reinvite` | Invite persons who already have an account again |
+| `invite -f FILE --reinvite` | Re-invite persons with status **Eingeladen**; **Registriert** is always skipped |
 | `invite -f FILE --skip-permission-request` | Do not request group membership for missing rights |
 | `invite -f FILE --skip-pre-join-groups` | Skip pre-join groups before invite |
 

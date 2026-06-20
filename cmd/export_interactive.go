@@ -8,12 +8,12 @@ import (
 	config "github.com/janmz/churchtools-invite/internal/config"
 )
 
-func interactiveExportOptions(client *churchtools.Client, cfg *config.Config) (churchtools.PersonListOptions, error) {
+func interactiveExportOptions(client *churchtools.Client, cfg *config.Config) (churchtools.PersonListOptions, exportInviteFilter, error) {
 	opts := churchtools.PersonListOptions{}
 
 	choice, err := promptExportCampus(client)
 	if err != nil {
-		return churchtools.PersonListOptions{}, err
+		return churchtools.PersonListOptions{}, exportInviteFilterNEU, err
 	}
 	applyCampusChoice(&opts, choice)
 
@@ -30,14 +30,14 @@ func interactiveExportOptions(client *churchtools.Client, cfg *config.Config) (c
 
 	mode, err := promptFilterMode()
 	if err != nil {
-		return churchtools.PersonListOptions{}, err
+		return churchtools.PersonListOptions{}, exportInviteFilterNEU, err
 	}
 
 	switch mode {
 	case "status":
 		statuses, err := client.ListPersonStatuses()
 		if err != nil {
-			return churchtools.PersonListOptions{}, err
+			return churchtools.PersonListOptions{}, exportInviteFilterNEU, err
 		}
 		statusItems := make([]menuItem, len(statuses))
 		for i, status := range statuses {
@@ -45,13 +45,13 @@ func interactiveExportOptions(client *churchtools.Client, cfg *config.Config) (c
 		}
 		statusID, err := promptMenu("Personenstatus auswählen", statusItems, false)
 		if err != nil {
-			return churchtools.PersonListOptions{}, err
+			return churchtools.PersonListOptions{}, exportInviteFilterNEU, err
 		}
 		opts.StatusID = statusID
 	case "group":
 		groups, err := client.ListGroups(churchtools.GroupListOptions{CampusID: opts.CampusID})
 		if err != nil {
-			return churchtools.PersonListOptions{}, err
+			return churchtools.PersonListOptions{}, exportInviteFilterNEU, err
 		}
 		groupItems := make([]menuItem, len(groups))
 		for i, group := range groups {
@@ -59,9 +59,14 @@ func interactiveExportOptions(client *churchtools.Client, cfg *config.Config) (c
 		}
 		groupID, err := promptMenu("Gruppe auswählen", groupItems, false)
 		if err != nil {
-			return churchtools.PersonListOptions{}, err
+			return churchtools.PersonListOptions{}, exportInviteFilterNEU, err
 		}
 		opts.GroupID = groupID
+	}
+
+	inviteFilter, err := promptExportInviteStatus()
+	if err != nil {
+		return churchtools.PersonListOptions{}, exportInviteFilterNEU, err
 	}
 
 	if opts.CampusID > 0 {
@@ -79,9 +84,10 @@ func interactiveExportOptions(client *churchtools.Client, cfg *config.Config) (c
 	if opts.GroupID > 0 {
 		fmt.Printf(", Gruppe-ID %d", opts.GroupID)
 	}
+	fmt.Printf(", %s", describeInviteFilter(inviteFilter))
 	fmt.Println()
 
-	return opts, nil
+	return opts, inviteFilter, nil
 }
 
 func campusName(campuses []churchtools.Campus, id int) string {
@@ -93,7 +99,7 @@ func campusName(campuses []churchtools.Campus, id int) string {
 	return fmt.Sprintf("ID %d", id)
 }
 
-func describeExportFilters(opts churchtools.PersonListOptions, includeInvited bool) string {
+func describeExportFilters(opts churchtools.PersonListOptions, inviteFilter exportInviteFilter) string {
 	parts := make([]string, 0, 4)
 	if opts.CampusID > 0 {
 		parts = append(parts, fmt.Sprintf("Standort-ID %d", opts.CampusID))
@@ -104,10 +110,8 @@ func describeExportFilters(opts churchtools.PersonListOptions, includeInvited bo
 	if opts.GroupID > 0 {
 		parts = append(parts, fmt.Sprintf("Gruppe-ID %d", opts.GroupID))
 	}
-	if !includeInvited {
-		parts = append(parts, "nur NEU")
-	}
-	if len(parts) == 0 {
+	parts = append(parts, describeInviteFilter(inviteFilter))
+	if len(parts) == 1 && inviteFilter == exportInviteFilterAll {
 		return "alle Personen"
 	}
 	return strings.Join(parts, ", ")

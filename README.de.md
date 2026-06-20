@@ -21,7 +21,8 @@ ChurchTools** aus einer CSV-Datei, u. a.:
 - Setup, Dry-Run und Berechtigungshinweise
 - Bereits eingeladene Personen standardmäßig überspringen; bei abweichender
   E-Mail in der CSV werden Adresse aktualisiert und erneut eingeladen
-  (`--reinvite` erzwingt Einladung auch bei gleicher E-Mail)
+  (`--reinvite` nur für Status **Eingeladen**; **Registriert** wird immer
+  übersprungen)
 
 Dies soll den Prozess unterstützen, den jede Gemeinde durchmacht, wenn sie neu mit Churchtools beginnt. Meist werden Personendaten aus einem bestehenden Tool übernommen, aber alle müssen neu für Churchtools eingeladen werden, damit auch die datenschutzrechtlichlichen Einwilligungen für Chruchtools erfasst und dokumentiert werden können. Meist sind in den Altsystemen noch "Altlasten", wie verstorbene oder ausgeschiedene ehemalige Mitglieder. Oder es sind E-Mail-Adressen hinterlegt, die nicht mehr aktuell oder präferiert sind. Der letzte Umstand kann dazu führen, dass Personen doppelt angelegt werden und dann mühsam zusammengeführt werden müssen. Mit diesem Tool kann dies zu großen Teilen vermieden werden. Zuerst werden die Daten exportiert und auch eine nicht technick-affine Person kann dann die Liste bereinigen (löschen und E-Mails korrigieren). Diese Liste wird dann für die Generierungen der Einladungen verwendet, wobei bei Bedarf die E-Mail-Adressen vorher korrigiert werden. Dazu muss die Person, die das Tool bedient die entsprechenden Rechte haben, oder durch einfache Anfragen in die dazu notwendigen Gruppen kommen. Das Tool versucht bei fehlenden Rechten eine automatische Aufnahme in die notwendigen Gruppen, aber wenn dies scheitert müssen die Rechte manuell zugeordnet werden. Es ist auch möglich einen Testlauf zu unternehmen, der zeigt, wer eingeladen würde und welche Änderungen vorgenommen würden.
 
@@ -37,7 +38,7 @@ Dies soll den Prozess unterstützen, den jede Gemeinde durchmacht, wenn sie neu 
   bisherige ChurchTools-Adresse bleibt als zusätzliche erhalten
 - Bereits eingeladene Personen überspringen, sofern die E-Mail stimmt; weicht
   die CSV-Adresse ab, E-Mail aktualisieren und erneut einladen; mit
-  `--reinvite` alle bereits eingeladenen Personen erneut einladen
+  `--reinvite` nur **Eingeladene** erneut einladen (**Registrierte** nie)
 - Automatische Gruppenanfrage bei fehlenden Rechten für Export und
   E-Mail-Sync
 
@@ -164,16 +165,18 @@ wurden**. Mit `-i` bzw. `--invited` erscheinen auch bereits eingeladene oder
 registrierte Personen in der Liste.
 
 ```csv
-id,vorname,nachname,email,status
-123,Max,Muster,max@example.org,NEU
-456,Anna,Beispiel,anna@example.org,Eingeladen
-789,Tim,Test,tim@example.org,Registriert
+id,vorname,nachname,email,standort,status
+123,Max,Muster,max@example.org,Rhein-Main,NEU
+456,Anna,Beispiel,anna@example.org,Rhein-Main,Eingeladen
+789,Tim,Test,tim@example.org,Rhein-Main,Registriert
 ```
 
 - Spalte `status`: `NEU` (noch nicht eingeladen), `Eingeladen` (Einladung
   ausstehend) oder `Registriert` (ChurchTools-Konto bereits angenommen)
-- Spalten `id`, `vorname`, `nachname`, `email` sind die Einladungs-CSV; `status`
-  dient der manuellen Bereinigung und wird beim Import mit `invite` ignoriert
+- Spalte `standort`: Standortname aus ChurchTools (nur Export)
+- Spalten `id`, `vorname`, `nachname`, `email` sind die Einladungs-CSV;
+  `standort` und `status` dienen der manuellen Bereinigung und werden beim
+  Import mit `invite` ignoriert
 
 **Standort:** `--campus` ist **nur nötig**, wenn Sie **nicht** für Ihren
 eigenen Standort exportieren möchten oder Ihrem Benutzer **kein** Standort
@@ -211,7 +214,8 @@ id,vorname,nachname,email
 - Spalte `id` ist Pflicht (auch: `person_id`, `ct_id`)
 - Name und E-Mail sind optional; bei abweichender E-Mail wird ChurchTools vor
   dem Einladen aktualisiert (alte Adresse bleibt als zusätzliche erhalten)
-- Zusätzliche Spalten wie `status` aus dem Export werden ignoriert
+- Zusätzliche Spalten wie `standort` und `status` aus dem Export werden
+  ignoriert
 
 ### Dry-run – Vor dem Versand prüfen
 
@@ -223,7 +227,8 @@ E-Mail-Sync). Pro CSV-Zeile wird geprüft:
 - Ist die Person bereits eingeladen? Erkennung u. a. über `invitationStatus`
   (`accepted`, `pending`). Standard: überspringen, sofern die E-Mail aus der
   CSV mit ChurchTools übereinstimmt; bei abweichender E-Mail werden Update und
-  erneute Einladung simuliert
+  erneute Einladung simuliert. **Registrierte** werden immer übersprungen;
+  `--reinvite` gilt nur für **Eingeladene**
 - Liegt eine Einladungs-E-Mail vor (CSV und/oder ChurchTools)?
 - Wäre ein E-Mail-Abgleich aus der CSV erforderlich?
 
@@ -242,10 +247,10 @@ Empfohlen vor dem ersten echten Versand. Alle Optionen von `invite`
 | `setup test` | Login und Verbindung testen |
 | `setup token` | Login-Token anzeigen |
 | `setup permissions` | Einladungs-Berechtigungen prüfen |
-| `whoami` | Angemeldeten Benutzer, Standort-ID und tatsächliche Instanz-URL anzeigen |
+| `whoami` | Angemeldeten Benutzer, Standort, Gruppenmitgliedschaften (sortiert nach Name, Format `Name  ID`) und Instanz-URL anzeigen |
 | `export -o DATEI` | Personenliste als Einladungs-CSV exportieren, Default `personen.csv` (`-` = stdout); standardmäßig nur noch nicht Eingeladene |
-| `export -i` / `--invited` | Auch bereits eingeladene und registrierte Personen exportieren |
-| `export --interactive` | Standort und Filter interaktiv wählen (Standort-Menü inkl. „Alle Standorte“) |
+| `export -i` / `--invited` | Alle Einladungsstatus exportieren (NEU, Eingeladen, Registriert) |
+| `export --interactive` | Standort, optional Filter (Personenstatus, Gruppe) und Einladungsstatus wählen (`[n]` Neu, `[e]` Eingeladen, `[r]` Registriert) |
 | `export --campus WERT` | Standort per ID oder eindeutigem Namens-Teilstring (siehe CSV-Format); nur nötig bei abweichendem Standort oder fehlendem Nutzer-Standort |
 | `export --campus all` | Alle Standorte (Alias zu `--all-campuses`) |
 | `export --all-campuses` | Keinen Standort-Filter |
@@ -257,7 +262,7 @@ Empfohlen vor dem ersten echten Versand. Alle Optionen von `invite`
 | `invite -f DATEI --dry-run` | Prüfen/simulieren ohne Versand (siehe oben) |
 | `invite -f DATEI --delay-ms MS` | Pause zwischen Einladungen (0 = `delay_ms` aus config) |
 | `invite -f DATEI --no-sync-email` | E-Mail-Sync aus CSV deaktivieren (abweichende E-Mail → Fehler) |
-| `invite -f DATEI --reinvite` | Bereits eingeladene Personen erneut einladen |
+| `invite -f DATEI --reinvite` | Personen mit Status **Eingeladen** erneut einladen; **Registriert** wird immer übersprungen |
 | `invite -f DATEI --skip-permission-request` | Keine Gruppenanfrage bei fehlenden Rechten |
 | `invite -f DATEI --skip-pre-join-groups` | Keine Vorab-Gruppen vor dem Invite beitreten |
 

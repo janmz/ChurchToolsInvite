@@ -13,13 +13,13 @@ const DefaultConfigName = "config.json"
 
 // Config holds ChurchTools connection settings.
 type Config struct {
-	BaseURL          string           `json:"base_url"`
-	LoginToken       string           `json:"login_token,omitempty"`
-	Username         string           `json:"username,omitempty"`
-	Password         string           `json:"password,omitempty"`
-	DelayMS          int              `json:"delay_ms,omitempty"`
-	CampusID         int              `json:"campus_id,omitempty"`
-	PreJoinGroups    string           `json:"pre_join_groups,omitempty"`
+	BaseURL       string `json:"base_url"`
+	LoginToken    string `json:"login_token,omitempty"`
+	Username      string `json:"username,omitempty"`
+	Password      string `json:"password,omitempty"`
+	DelayMS       int    `json:"delay_ms,omitempty"`
+	CampusID      int    `json:"campus_id,omitempty"`
+	PreJoinGroups string `json:"pre_join_groups,omitempty"`
 }
 
 // DefaultEditPersonsGroups are candidate groups for write/admin permissions.
@@ -34,7 +34,7 @@ var DefaultExportPersonsGroups = []string{
 }
 
 // DefaultPreJoinGroups is the comma-separated list of groups joined before export/invite.
-const DefaultPreJoinGroups = "ChurchTools Admin,ChurchTools Verwaltung,Personen Administration,Personen verwalten"
+const DefaultPreJoinGroups = "ChurchTools Verwaltung,Gruppen Administration,ChurchTools Admin,Personen Administration,Personen verwalten"
 
 // ParseCommaSeparatedNames splits a comma-separated list and trims empty entries.
 func ParseCommaSeparatedNames(raw string) []string {

@@ -55,6 +55,66 @@ func TestDryRunSkipsAlreadyInvited(t *testing.T) {
 	}
 }
 
+func TestReinviteSkipsRegisteredUser(t *testing.T) {
+	invited := false
+	mux := http.NewServeMux()
+	registerInviteMocks(mux, map[string]any{
+		"id":               99,
+		"firstName":        "Max",
+		"lastName":         "Muster",
+		"email":            "max@example.org",
+		"invitationStatus": "accepted",
+	})
+	mux.HandleFunc("/api/persons/99/invite", func(w http.ResponseWriter, r *http.Request) {
+		invited = true
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	client := newInviteTestClient(t, mux)
+	results, err := invite.Run(client, []csvfile.Entry{{
+		Line: 2, PersonID: 99, Email: "max@example.org",
+	}}, invite.Options{Reinvite: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if invited {
+		t.Fatal("registered user must not be invited even with --reinvite")
+	}
+	if len(results) != 1 || !results[0].Skipped {
+		t.Fatalf("expected skipped result, got %+v", results)
+	}
+}
+
+func TestReinvitePendingUser(t *testing.T) {
+	invited := false
+	mux := http.NewServeMux()
+	registerInviteMocks(mux, map[string]any{
+		"id":               99,
+		"firstName":        "Max",
+		"lastName":         "Muster",
+		"email":            "max@example.org",
+		"invitationStatus": "pending",
+	})
+	mux.HandleFunc("/api/persons/99/invite", func(w http.ResponseWriter, r *http.Request) {
+		invited = true
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	client := newInviteTestClient(t, mux)
+	results, err := invite.Run(client, []csvfile.Entry{{
+		Line: 2, PersonID: 99, Email: "max@example.org",
+	}}, invite.Options{Reinvite: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !invited {
+		t.Fatal("pending user should be re-invited with --reinvite")
+	}
+	if len(results) != 1 || !results[0].Success || results[0].Skipped {
+		t.Fatalf("unexpected result: %+v", results[0])
+	}
+}
+
 func TestDryRunReinvitesWhenEmailDiffers(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/whoami", func(w http.ResponseWriter, r *http.Request) {

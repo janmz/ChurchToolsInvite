@@ -157,6 +157,9 @@ func resolveInviteEmail(
 }
 
 func shouldSkipInvitedPerson(person churchtools.Person, entry csvfile.Entry, opts Options) bool {
+	if person.IsRegisteredUser() {
+		return true
+	}
 	if opts.Reinvite || !person.HasChurchToolsAccount() {
 		return false
 	}

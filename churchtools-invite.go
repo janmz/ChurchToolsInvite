@@ -11,13 +11,14 @@ package main
  * using ChurchTools for managing their contacts and communications.
  *
  *
- * Version: 2.6.0.40 (in version.go zu ändern)
+ * Version: 2.6.2.49 (in version.go zu ändern)
  *
  * Author: Jan Neuhaus, VAYA Consulting, https://vaya-consulting.de/development
  *
  * Repository: https://github.com/janmz/ChurchToolsInvite
  *
  * ChangeLog:
+ *  20.06.26	2.6.2	Fixes: auto-signup of groups will be used, groups displayed with whoami, pre_join_groups corrected, no invitation to registered users, --interactive has new filter for invitation status
  *  20.06.26	2.6.0	Feature: Now only uninvited persons are exported unless --invited is given. --campus-id becomes --campus and accepts (partial) names, csv includes campus and status
  *  17.06.26	2.4.0	Fixed: Replacement of e-mail-addresses now working and tested
  *  17.06.26	2.3.2	Fixed: Windows build including icon - worked!

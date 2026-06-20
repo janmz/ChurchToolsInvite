@@ -2,6 +2,82 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.6.1.48] - 2026-06-20 12:47:14
+
+### Added
+
+- `export --interactive`: Einladungsstatus wählen mit `[n]` Neu, `[e]` Eingeladen,
+  `[r]` Registriert
+
+### Changed
+
+- `README.md` / `README.de.md`: CSV-Spalte `standort`, `--reinvite`-Verhalten,
+  interaktiver Einladungsstatus, `whoami`-Gruppenformat
+
+## [2.6.1.47] - 2026-06-20 12:40:33
+
+### Fixed
+
+- Gruppenbeitritt per Signup (`autoAccept`): Rückgabe enthält jetzt die Meldung
+  „Mitgliedschaft angenommen (Gruppenanmeldung)“ statt leerer Message bei Status
+  `active`
+
+## [2.6.1.46] - 2026-06-20 12:39:17
+
+### Fixed
+
+- `invite`: Personen mit Status „Registriert“ werden nie erneut eingeladen,
+  auch nicht mit `--reinvite` (z. B. nach Export mit `--invited`)
+
+### Changed
+
+- `--reinvite` gilt nur noch für „Eingeladen“ (Einladung ausstehend)
+
+## [2.6.1.45] - 2026-06-20 12:36:42
+
+### Fixed
+
+- `export --output` / `invite --csv`: Werte wie `-i` oder `--invited` nach `-o`/`-f`
+  werden als fehlender Dateiname erkannt statt still als Dateiname interpretiert
+
+## [2.6.1.44] - 2026-06-20 12:27:54
+
+### Fixed
+
+- Gruppenbeitritt: Bei `403` auf `PUT /groups/{id}/members/{personId}` wird die
+  Web-GUI-Anmeldung über `GET /publicgroups/{id}/form`, `POST .../token` und
+  `POST .../signup` verwendet (Behebt „denied“ trotz sichtbarem „Beitreten“-Button)
+
+## [2.6.1.43] - 2026-06-20 12:14:10
+
+### Fixed
+
+- `whoami` / `ListPersonGroups`: `groupId` statt Mitgliedschafts-`id` verwenden
+  (behebt doppelte/falsche Gruppen-ID 932 o. ä.)
+- `whoami`: Gruppen alphabetisch nach Name, Ausgabe `Name  ID`
+
+## [2.6.1.42] - 2026-06-20 11:55:55
+
+### Added
+
+- `whoami`: Gruppenmitgliedschaften des angemeldeten Benutzers mit ID und Name
+
+## [2.6.1.41] - 2026-06-20 11:12:23
+
+### Fixed
+
+- `pre_join_groups`: noch unsichtbare Gruppen blockieren nicht mehr die restliche
+  Liste; nach erfolgreichem Beitritt wird die Sitzung erneuert und vorher
+  nicht gefundene Gruppen erneut versucht
+
+### Changed
+
+- Standard `pre_join_groups`: `ChurchTools Verwaltung,Gruppen Administration,ChurchTools Admin,Personen Administration,Personen verwalten`
+
+## [2.6.0.40] - 2026-06-20
+
+Feature: Now only uninvited persons are exported unless `--invited` is given. `--campus-id` becomes `--campus` and accepts (partial) names, csv includes campus and status
+
 ## [2.5.0.39] - 2026-06-20 08:59:33
 
 ### Added

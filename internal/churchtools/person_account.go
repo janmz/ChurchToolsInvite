@@ -69,6 +69,12 @@ func (p Person) HasChurchToolsAccount() bool {
 	return false
 }
 
+// IsRegisteredUser reports whether the person already has an active ChurchTools
+// account (export status "Registriert"). Such persons must never be re-invited.
+func (p Person) IsRegisteredUser() bool {
+	return p.ExportStatusLabel() == "Registriert"
+}
+
 // ExportStatusLabel is the invitation status written to export CSV rows.
 func (p Person) ExportStatusLabel() string {
 	switch normalizeInvitationStatus(p.InvitationStatus) {

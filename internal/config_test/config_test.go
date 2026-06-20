@@ -143,11 +143,14 @@ func TestLoadAppliesEnvInstanceName(t *testing.T) {
 func TestPreJoinGroupNamesDefaults(t *testing.T) {
 	cfg := config.Config{}
 	names := cfg.PreJoinGroupNames()
-	if len(names) != 4 {
+	if len(names) != 5 {
 		t.Fatalf("names = %v", names)
 	}
-	if names[3] != "Personen verwalten" {
-		t.Fatalf("last name = %q", names[3])
+	if names[0] != "ChurchTools Verwaltung" {
+		t.Fatalf("first name = %q", names[0])
+	}
+	if names[4] != "Personen verwalten" {
+		t.Fatalf("last name = %q", names[4])
 	}
 }
 

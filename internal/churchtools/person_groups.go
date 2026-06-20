@@ -3,6 +3,7 @@ package churchtools
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -70,10 +71,11 @@ func decodeGroupReference(raw json.RawMessage) (Group, bool) {
 }
 
 func groupIDFromObject(obj map[string]any) (int, bool) {
-	if id, ok := intFromAny(obj["id"]); ok && id > 0 {
+	// Membership rows use id for the relation; groupId holds the actual group.
+	if id, ok := intFromAny(obj["groupId"]); ok && id > 0 {
 		return id, true
 	}
-	if id, ok := intFromAny(obj["groupId"]); ok && id > 0 {
+	if id, ok := intFromAny(obj["id"]); ok && id > 0 {
 		return id, true
 	}
 	if apiURL, ok := obj["apiUrl"].(string); ok {
@@ -132,6 +134,18 @@ func groupIDFromAPIURL(apiURL string) (int, bool) {
 // PlainGroupName strips HTML markup from a ChurchTools group name.
 func PlainGroupName(name string) string {
 	return plainGroupName(name)
+}
+
+// SortGroupsByName sorts groups by plain name (case-insensitive), then by ID.
+func SortGroupsByName(groups []Group) {
+	sort.Slice(groups, func(i, j int) bool {
+		left := strings.ToLower(PlainGroupName(groups[i].Name))
+		right := strings.ToLower(PlainGroupName(groups[j].Name))
+		if left != right {
+			return left < right
+		}
+		return groups[i].ID < groups[j].ID
+	})
 }
 
 // PersonIsInGroup reports whether a person belongs to a group by name.

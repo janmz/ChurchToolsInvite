@@ -34,7 +34,7 @@ func init() {
 	inviteCmd.Flags().IntVar(&delayMS, "delay-ms", 0, "Pause zwischen Einladungen in Millisekunden (0 = config.delay_ms)")
 	inviteCmd.Flags().BoolVar(&skipPermissionRequest, "skip-permission-request", false, "Keine Gruppenmitgliedschaft für fehlende Berechtigungen beantragen")
 	inviteCmd.Flags().BoolVar(&skipPreJoin, "skip-pre-join-groups", false, "Keine Vorab-Gruppen vor dem Invite beitreten")
-	inviteCmd.Flags().BoolVar(&reinvite, "reinvite", false, "Bereits eingeladene Personen erneut einladen (Standard: überspringen)")
+	inviteCmd.Flags().BoolVar(&reinvite, "reinvite", false, "Bereits eingeladene (Status Eingeladen) erneut einladen; Registrierte werden immer übersprungen")
 	inviteCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Prüfen/simulieren ohne Einladungen zu senden oder ChurchTools zu ändern")
 	inviteCmd.Flags().BoolVar(&noSyncEmail, "no-sync-email", false, "E-Mail aus CSV nicht nach ChurchTools übernehmen")
 	_ = inviteCmd.MarkFlagRequired("csv")
@@ -43,6 +43,9 @@ func init() {
 func runInvite() error {
 	if csvPath == "" {
 		return fmt.Errorf("--csv ist erforderlich")
+	}
+	if err := validatePathFlagValue("--csv", csvPath); err != nil {
+		return err
 	}
 
 	cfg, err := config.LoadOrEmpty(configPath)

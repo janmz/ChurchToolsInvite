@@ -33,8 +33,8 @@ id,vorname,nachname,email,standort,status – direkt verwendbar für invite
 Standardmäßig werden nur Personen exportiert, die noch nicht eingeladen wurden
 (status NEU). Mit --invited erscheinen auch Eingeladene und Registrierte.
 
-Mit --interactive wählen Sie zuerst einen Standort und danach optional
-einen Filter (alle Personen, Personenstatus oder Gruppe).`,
+Mit --interactive wählen Sie Standort, optional einen Filter (Personenstatus
+oder Gruppe) und den Einladungsstatus (Neu, Eingeladen, Registriert).`,
 	Run: func(cmd *cobra.Command, args []string) {
 		exitOnError(runExport())
 	},
@@ -57,6 +57,9 @@ func init() {
 func runExport() error {
 	if exportOutput == "" {
 		return fmt.Errorf("--output ist erforderlich")
+	}
+	if err := validatePathFlagValue("--output", exportOutput); err != nil {
+		return err
 	}
 
 	cfg, err := config.LoadOrEmpty(configPath)
@@ -82,8 +85,12 @@ func runExport() error {
 	}
 
 	var opts churchtools.PersonListOptions
+	inviteFilter := exportInviteFilterNEU
+	if exportInvited {
+		inviteFilter = exportInviteFilterAll
+	}
 	if exportInteractive {
-		opts, err = interactiveExportOptions(client, &cfg)
+		opts, inviteFilter, err = interactiveExportOptions(client, &cfg)
 		if err != nil {
 			return err
 		}
@@ -103,9 +110,9 @@ func runExport() error {
 	if err != nil {
 		return err
 	}
-	persons = filterExportPersons(persons, exportInvited)
+	persons = filterExportPersons(persons, inviteFilter)
 	if len(persons) == 0 {
-		return fmt.Errorf("keine personen gefunden (%s)", describeExportFilters(opts, exportInvited))
+		return fmt.Errorf("keine personen gefunden (%s)", describeExportFilters(opts, inviteFilter))
 	}
 
 	campusNames, err := campusNameMap(client)
@@ -119,7 +126,7 @@ func runExport() error {
 		if err := csvfile.WriteTo(os.Stdout, entries); err != nil {
 			return err
 		}
-		fmt.Fprintf(os.Stderr, "%d personen nach stdout exportiert (%s)\n", len(entries), describeExportFilters(opts, exportInvited))
+		fmt.Fprintf(os.Stderr, "%d personen nach stdout exportiert (%s)\n", len(entries), describeExportFilters(opts, inviteFilter))
 		return nil
 	}
 
@@ -127,19 +134,41 @@ func runExport() error {
 		return err
 	}
 
-	fmt.Printf("%d personen nach %s exportiert (%s)\n", len(entries), exportOutput, describeExportFilters(opts, exportInvited))
+	fmt.Printf("%d personen nach %s exportiert (%s)\n", len(entries), exportOutput, describeExportFilters(opts, inviteFilter))
 	return nil
 }
 
-func filterExportPersons(persons []churchtools.Person, includeInvited bool) []churchtools.Person {
-	if includeInvited {
+type exportInviteFilter string
+
+const (
+	exportInviteFilterAll         exportInviteFilter = ""
+	exportInviteFilterNEU         exportInviteFilter = "NEU"
+	exportInviteFilterEingeladen  exportInviteFilter = "Eingeladen"
+	exportInviteFilterRegistriert exportInviteFilter = "Registriert"
+)
+
+func filterExportPersons(persons []churchtools.Person, filter exportInviteFilter) []churchtools.Person {
+	if filter == exportInviteFilterAll {
 		return persons
 	}
 	filtered := make([]churchtools.Person, 0, len(persons))
 	for _, person := range persons {
-		if person.ExportStatusLabel() == "NEU" {
+		if person.ExportStatusLabel() == string(filter) {
 			filtered = append(filtered, person)
 		}
 	}
 	return filtered
+}
+
+func describeInviteFilter(filter exportInviteFilter) string {
+	switch filter {
+	case exportInviteFilterAll:
+		return "alle Einladungsstatus"
+	case exportInviteFilterEingeladen:
+		return "nur Eingeladen"
+	case exportInviteFilterRegistriert:
+		return "nur Registriert"
+	default:
+		return "nur NEU"
+	}
 }

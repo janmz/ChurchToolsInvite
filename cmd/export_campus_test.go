@@ -62,12 +62,12 @@ func TestFilterExportPersons(t *testing.T) {
 		{ID: 3, InvitationStatus: "accepted"},
 	}
 
-	filtered := filterExportPersons(persons, false)
+	filtered := filterExportPersons(persons, exportInviteFilterNEU)
 	if len(filtered) != 1 || filtered[0].ID != 1 {
 		t.Fatalf("filtered = %+v", filtered)
 	}
 
-	all := filterExportPersons(persons, true)
+	all := filterExportPersons(persons, exportInviteFilterAll)
 	if len(all) != 3 {
 		t.Fatalf("all = %+v", all)
 	}

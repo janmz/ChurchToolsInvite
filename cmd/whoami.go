@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	churchtools "github.com/janmz/churchtools-invite/internal/churchtools"
 	config "github.com/janmz/churchtools-invite/internal/config"
 	"github.com/spf13/cobra"
 )
@@ -48,6 +49,20 @@ func runWhoAmI() error {
 			} else {
 				fmt.Printf("Standard-Standort (config): ID %d\n", cfg.CampusID)
 			}
+		}
+	}
+
+	groups, err := client.ListPersonGroups(user.ID)
+	if err != nil {
+		return err
+	}
+	churchtools.SortGroupsByName(groups)
+	if len(groups) == 0 {
+		fmt.Println("Gruppen:     (keine)")
+	} else {
+		fmt.Println("Gruppen:")
+		for _, group := range groups {
+			fmt.Printf("  %s  %d\n", churchtools.PlainGroupName(group.Name), group.ID)
 		}
 	}
 

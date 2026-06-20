@@ -41,12 +41,12 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "ChurchTools-Invite: export (interactive)",
+            "name": "ChurchTools-Invite: export -o -",
             "type": "go",
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}",
-            "args": ["export", "--interactive"],
+            "args": ["export", "-o", "-"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },
