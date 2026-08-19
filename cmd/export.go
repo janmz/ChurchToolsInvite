@@ -35,8 +35,8 @@ Standardmäßig werden nur Personen exportiert, die noch nicht eingeladen wurden
 
 Mit --interactive wählen Sie Standort, optional einen Filter (Personenstatus
 oder Gruppe) und den Einladungsstatus (Neu, Eingeladen, Registriert).`,
-	Run: func(cmd *cobra.Command, args []string) {
-		exitOnError(runExport())
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runExport(cmd)
 	},
 }
 
@@ -54,11 +54,11 @@ func init() {
 	exportCmd.Flags().BoolVar(&exportSkipPreJoin, "skip-pre-join-groups", false, "Keine Vorab-Gruppen vor dem Export beitreten")
 }
 
-func runExport() error {
-	if exportOutput == "" {
-		return fmt.Errorf("--output ist erforderlich")
+func runExport(cmd *cobra.Command) error {
+	if err := requireNonEmptyFlag(cmd, "--output (-o)", exportOutput); err != nil {
+		return err
 	}
-	if err := validatePathFlagValue("--output", exportOutput); err != nil {
+	if err := validatePathFlagValueForCmd(cmd, "--output", exportOutput); err != nil {
 		return err
 	}
 

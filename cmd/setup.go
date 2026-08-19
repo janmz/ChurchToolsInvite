@@ -15,37 +15,39 @@ import (
 var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "ChurchTools-Verbindung und Berechtigungen einrichten",
+	Args:  setupSubcommandArgs,
+	RunE:  setupSubcommandRequired,
 }
 
 var setupInitCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Interaktive Erstellung der config.json",
-	Run: func(cmd *cobra.Command, args []string) {
-		exitOnError(runSetupInit())
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runSetupInit()
 	},
 }
 
 var setupTestCmd = &cobra.Command{
 	Use:   "test",
 	Short: "Verbindung und Login testen",
-	Run: func(cmd *cobra.Command, args []string) {
-		exitOnError(runSetupTest())
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runSetupTest()
 	},
 }
 
 var setupTokenCmd = &cobra.Command{
 	Use:   "token",
 	Short: "Login-Token für die eigene Person abrufen",
-	Run: func(cmd *cobra.Command, args []string) {
-		exitOnError(runSetupToken())
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runSetupToken()
 	},
 }
 
 var setupPermissionsCmd = &cobra.Command{
 	Use:   "permissions",
 	Short: "Berechtigungen für Einladungen prüfen",
-	Run: func(cmd *cobra.Command, args []string) {
-		exitOnError(runSetupPermissions())
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runSetupPermissions()
 	},
 }
 

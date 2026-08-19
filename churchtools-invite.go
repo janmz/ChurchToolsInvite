@@ -11,13 +11,14 @@ package main
  * using ChurchTools for managing their contacts and communications.
  *
  *
- * Version: 2.6.2.49 (in version.go zu ändern)
+ * Version: 2.6.3.51 (in version.go zu ändern)
  *
  * Author: Jan Neuhaus, VAYA Consulting, https://vaya-consulting.de/development
  *
  * Repository: https://github.com/janmz/ChurchToolsInvite
  *
  * ChangeLog:
+ *  19.08.26	2.6.3	Fix: usage and parameter error messages
  *  20.06.26	2.6.2	Fixes: auto-signup of groups will be used, groups displayed with whoami, pre_join_groups corrected, no invitation to registered users, --interactive has new filter for invitation status
  *  20.06.26	2.6.0	Feature: Now only uninvited persons are exported unless --invited is given. --campus-id becomes --campus and accepts (partial) names, csv includes campus and status
  *  17.06.26	2.4.0	Fixed: Replacement of e-mail-addresses now working and tested
@@ -42,7 +43,7 @@ import (
 
 func main() {
 	if err := cmd.Execute(fmt.Sprintf("%s (%s)", Version, BuildTime)); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintf(os.Stderr, "\n%s\n", err)
 		os.Exit(1)
 	}
 }

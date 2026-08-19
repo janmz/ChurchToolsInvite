@@ -11,8 +11,8 @@ import (
 var whoamiCmd = &cobra.Command{
 	Use:   "whoami",
 	Short: "Angemeldeten ChurchTools-Benutzer anzeigen",
-	Run: func(cmd *cobra.Command, args []string) {
-		exitOnError(runWhoAmI())
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runWhoAmI()
 	},
 }
 

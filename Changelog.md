@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.6.2.50] - 2026-08-19 22:28:17
+
+### Changed
+
+- CLI-Hilfe und Fehlermeldungen vollständig auf Deutsch (Verwendung, Optionen,
+  Pflichtoptionen, unbekannte Befehle/Optionen)
+- Einheitliche Fehlerausgabe: genau eine Meldung, bei Parsing- und
+  Validierungsfehlern immer der passende Hilfe-Block
+- `setup` ohne oder mit unbekanntem Unterbefehl beendet mit Fehlercode 1
+- `invite`: ausführlicher Hilfetext wie bei `export`
+
+### Fixed
+
+- Doppelte Fehlermeldungen bei Cobra-Fehlern (zuvor Error-Zeile plus Wiederholung
+  in `main`)
+- Runtime-Fehler (`--csv`/`--output` fehlt, Pfad sieht wie Option aus) zeigen
+  jetzt ebenfalls die Befehls-Hilfe
+
 ## [2.6.1.48] - 2026-06-20 12:47:14
 
 ### Added

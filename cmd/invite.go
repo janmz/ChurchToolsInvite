@@ -24,8 +24,15 @@ var (
 var inviteCmd = &cobra.Command{
 	Use:   "invite",
 	Short: "Einladungen für alle Personen in der CSV senden",
-	Run: func(cmd *cobra.Command, args []string) {
-		exitOnError(runInvite())
+	Long: `Liest Personen-IDs aus einer CSV-Datei und versendet Einladungs-E-Mails
+über die ChurchTools-API.
+
+Pflichtoption: --csv (-f) mit Pfad zur CSV-Datei.
+
+Optionen wie --dry-run, --reinvite und --no-sync-email steuern Ablauf und
+E-Mail-Abgleich; siehe Optionen unten.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runInvite(cmd)
 	},
 }
 
@@ -37,14 +44,13 @@ func init() {
 	inviteCmd.Flags().BoolVar(&reinvite, "reinvite", false, "Bereits eingeladene (Status Eingeladen) erneut einladen; Registrierte werden immer übersprungen")
 	inviteCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Prüfen/simulieren ohne Einladungen zu senden oder ChurchTools zu ändern")
 	inviteCmd.Flags().BoolVar(&noSyncEmail, "no-sync-email", false, "E-Mail aus CSV nicht nach ChurchTools übernehmen")
-	_ = inviteCmd.MarkFlagRequired("csv")
 }
 
-func runInvite() error {
-	if csvPath == "" {
-		return fmt.Errorf("--csv ist erforderlich")
+func runInvite(cmd *cobra.Command) error {
+	if err := requireNonEmptyFlag(cmd, "--csv (-f)", csvPath); err != nil {
+		return err
 	}
-	if err := validatePathFlagValue("--csv", csvPath); err != nil {
+	if err := validatePathFlagValueForCmd(cmd, "--csv", csvPath); err != nil {
 		return err
 	}
 
