@@ -1,7 +1,11 @@
 # Secrets and local config
 config.json
-personen*.csv
 .env
+
+# Personenlisten (keine CSV/XLSX im Repository)
+*.csv
+*.xlsx
+!examples/*.example
 *.local.json
 
 # Build output

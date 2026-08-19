@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.6.3.52] - 2026-08-19 22:39:42
+
+### Removed
+
+- Personenlisten aus dem Repository entfernt (`20260705-Liste.csv/.xlsx`,
+  `dup20260706.csv`, `stand19072026.csv`) – auch aus der gesamten Git-Historie
+
+### Changed
+
+- `.gitignore`: generell `*.csv` und `*.xlsx` ignorieren (Ausnahme:
+  `examples/*.example`)
+
 ## [2.6.2.50] - 2026-08-19 22:28:17
 
 ### Changed
