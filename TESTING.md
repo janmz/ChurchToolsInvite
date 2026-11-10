@@ -6,7 +6,7 @@
 go test ./...
 ```
 
-Or run the local CI script (`go vet`, build included):
+Or run the local CI script (gofmt, `go vet`, staticcheck, build included):
 
 ```bash
 scripts/ci.sh     # Linux/macOS
@@ -67,7 +67,7 @@ Currently **40+** test functions across **14** files.
 | **`cmd/` (Cobra commands)** | Thin wrapper over `internal/*`; interactive flows (`setup init`, campus menus) need a TTY. Business logic is tested in `internal/`. |
 | **Real ChurchTools server** | No shared test instance in CI; permissions and data differ per church. Manual checks: `churchtools-invite setup test` and `invite --dry-run`. |
 | **Email delivery / SMTP** | Invitations are sent by ChurchTools; this tool only calls `POST /persons/{id}/invite` (covered by mocks). |
-| **Interactive password (TTY)** | Raw mode and `*` echo are platform-specific; piped input is tested. |
+| **Interactive password (TTY)** | Raw mode without echo is platform-specific; piped input is tested. |
 | **`main` / version constants** | Nothing meaningful to unit-test. |
 
 ### Manual acceptance on a real instance

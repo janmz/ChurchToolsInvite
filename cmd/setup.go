@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -37,7 +36,7 @@ var setupTestCmd = &cobra.Command{
 
 var setupTokenCmd = &cobra.Command{
 	Use:   "token",
-	Short: "Login-Token für die eigene Person abrufen",
+	Short: "Eigenen Login-Token abrufen und verschlüsselt in config.json speichern",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runSetupToken()
 	},
@@ -51,48 +50,73 @@ var setupPermissionsCmd = &cobra.Command{
 	},
 }
 
-var tokenPersonID int
-
 func init() {
 	setupCmd.AddCommand(setupInitCmd)
 	setupCmd.AddCommand(setupTestCmd)
 	setupCmd.AddCommand(setupTokenCmd)
 	setupCmd.AddCommand(setupPermissionsCmd)
-
-	setupTokenCmd.Flags().IntVar(&tokenPersonID, "person-id", 0, "Person-ID (Standard: angemeldeter Benutzer)")
 }
 
+// runSetupInit asks for connection settings. An existing config file is
+// loaded first (after confirmation) and only the asked fields are replaced,
+// so campus_id, delay_ms and other settings survive.
 func runSetupInit() error {
-	reader := bufio.NewReader(os.Stdin)
-	cfg := config.Config{DelayMS: 500}
+	cfg := config.Default()
+	if config.Exists(configPath) {
+		answer, err := readLine(fmt.Sprintf("%s existiert bereits. Verbindungsdaten neu eingeben (übrige Einstellungen bleiben erhalten)? [j/N]: ", configPath))
+		if err != nil {
+			return err
+		}
+		if !strings.EqualFold(strings.TrimSpace(answer), "j") {
+			return fmt.Errorf("abgebrochen – %s unverändert", configPath)
+		}
+		existing, err := config.LoadFile(configPath)
+		if err != nil {
+			return err
+		}
+		cfg = existing
+	}
 
-	fmt.Print("ChurchTools-Instanz (z. B. meine-gemeinde oder emk-rheinmain): ")
-	instanceName, _ := reader.ReadString('\n')
+	instanceName, err := readLine("ChurchTools-Instanz (z. B. meine-gemeinde oder meine-gemeinde-unterstadt): ")
+	if err != nil {
+		return err
+	}
 	baseURL, err := config.BaseURLFromInstanceName(instanceName)
 	if err != nil {
 		return err
 	}
 	cfg.BaseURL = baseURL
 
-	fmt.Print("Login-Methode [token/password]: ")
-	method, _ := reader.ReadString('\n')
-	method = strings.ToLower(strings.TrimSpace(method))
+	mainURL, err := askMainInstanceURL(baseURL, cfg.MainURL)
+	if err != nil {
+		return err
+	}
+	cfg.MainURL = mainURL
 
-	switch method {
+	method, err := readLine("Login-Methode [token/password]: ")
+	if err != nil {
+		return err
+	}
+
+	switch strings.ToLower(strings.TrimSpace(method)) {
 	case "password", "passwort", "pw":
-		fmt.Print("Benutzername: ")
-		user, _ := reader.ReadString('\n')
-		cfg.Username = strings.TrimSpace(user)
-
-		pass, err := termio.ReadPassword("Passwort: ")
+		user, err := readLine("Benutzername: ")
+		if err != nil {
+			return err
+		}
+		pass, err := termio.ReadPassword("Passwort: ", stdinReader)
 		if err != nil {
 			return fmt.Errorf("passwort einlesen: %w", err)
 		}
-		cfg.Password = strings.TrimSpace(pass)
+		// The password is stored verbatim; spaces may be part of it.
+		cfg.UsePassword(user, pass)
 	default:
-		fmt.Print("Login-Token: ")
-		token, _ := reader.ReadString('\n')
-		cfg.LoginToken = strings.TrimSpace(token)
+		// Read hidden like a password: the token grants full account access.
+		token, err := termio.ReadPassword("Login-Token: ", stdinReader)
+		if err != nil {
+			return fmt.Errorf("Login-Token einlesen: %w", err)
+		}
+		cfg.UseLoginToken(token)
 	}
 
 	client, err := connectChurchTools(cfg)
@@ -107,30 +131,32 @@ func runSetupInit() error {
 
 	fmt.Printf("Login erfolgreich als %s %s (%s)\n", user.FirstName, user.LastName, user.Email)
 
-	if cfg.LoginToken == "" {
-		token, err := client.MeAPIToken()
-		if err != nil || token == "" {
-			token, err = client.LoginToken(user.ID)
-		}
-		if err == nil && token != "" {
-			fmt.Println("\nOptional: Login-Token für dauerhafte API-Nutzung gefunden.")
-			fmt.Print("Token in config.json speichern? [j/N]: ")
-			answer, _ := reader.ReadString('\n')
-			if strings.EqualFold(strings.TrimSpace(answer), "j") {
-				cfg.LoginToken = token
-				cfg.Username = ""
-				cfg.Password = ""
+	if cfg.LoginTokenPassword == "" {
+		// Ask first: ChurchTools creates a long-lived token on request
+		// ("get or create"), which should only happen when it is wanted.
+		answer, _ := readLine(fmt.Sprintf("\nOptional: Login-Token abrufen und verschlüsselt in %s speichern (statt Passwort)? [j/N]: ", configPath))
+		if strings.EqualFold(strings.TrimSpace(answer), "j") {
+			token, err := client.MeAPIToken()
+			if err != nil || token == "" {
+				token, err = client.LoginToken(user.ID)
+			}
+			if err == nil && token != "" {
+				cfg.UseLoginToken(token)
+			} else {
+				fmt.Fprintln(os.Stderr, "Login-Token konnte nicht abgerufen werden – Passwort bleibt gespeichert.")
 			}
 		}
 	}
 
-	fmt.Printf("Gruppen vor Export/Invite (kommagetrennt) [%s]: ", config.DefaultPreJoinGroups)
-	preJoinInput, _ := reader.ReadString('\n')
-	preJoinInput = strings.TrimSpace(preJoinInput)
-	if preJoinInput != "" {
+	// An empty answer keeps the previous value; an empty value means the
+	// built-in default, applied at runtime (not written to the file).
+	shownPreJoin := cfg.PreJoinGroups
+	if strings.TrimSpace(shownPreJoin) == "" {
+		shownPreJoin = config.DefaultPreJoinGroups + " (Standard)"
+	}
+	preJoinInput, _ := readLine(fmt.Sprintf("Gruppen vor Export/Invite (kommagetrennt, - = keine) [%s]: ", shownPreJoin))
+	if preJoinInput = strings.TrimSpace(preJoinInput); preJoinInput != "" {
 		cfg.PreJoinGroups = preJoinInput
-	} else {
-		cfg.PreJoinGroups = config.DefaultPreJoinGroups
 	}
 
 	if err := config.Save(configPath, cfg); err != nil {
@@ -165,6 +191,9 @@ func runSetupTest() error {
 	return nil
 }
 
+// runSetupToken fetches the login token of the logged-in user and stores it
+// encrypted in the config file. The token is never printed, and tokens of
+// other persons cannot be requested (that would take over their account).
 func runSetupToken() error {
 	cfg, err := config.LoadOrEmpty(configPath)
 	if err != nil {
@@ -176,24 +205,114 @@ func runSetupToken() error {
 		return err
 	}
 
-	personID := tokenPersonID
-	if personID == 0 {
-		user, err := client.WhoAmI()
-		if err != nil {
-			return err
-		}
-		personID = user.ID
-	}
-
-	token, err := client.LoginToken(personID)
+	user, err := client.WhoAmI()
 	if err != nil {
 		return err
 	}
+	token, err := client.LoginToken(user.ID)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(token) == "" {
+		return fmt.Errorf("ChurchTools hat keinen Login-Token geliefert")
+	}
 
-	fmt.Printf("Login-Token für Person %d:\n%s\n", personID, token)
-	fmt.Println("\nTrage den Token in config.json unter login_token ein oder setze CT_LOGIN_TOKEN.")
+	fmt.Printf("Login-Token für %s %s (Person %d) abgerufen.\n", user.FirstName, user.LastName, user.ID)
+	answer, _ := readLine(fmt.Sprintf("Token verschlüsselt in %s speichern (Benutzername/Passwort werden dort entfernt)? [j/N]: ", configPath))
+	if !strings.EqualFold(strings.TrimSpace(answer), "j") {
+		fmt.Println("Nicht gespeichert.")
+		return nil
+	}
+
+	// Load the file without environment values, so nothing from CT_* is
+	// written to disk.
+	fileCfg := config.Default()
+	if config.Exists(configPath) {
+		if fileCfg, err = config.LoadFile(configPath); err != nil {
+			return err
+		}
+	} else {
+		fileCfg.BaseURL = cfg.BaseURL
+		fileCfg.MainURL = cfg.MainURL
+	}
+	fileCfg.UseLoginToken(token)
+	if err := config.Save(configPath, fileCfg); err != nil {
+		return err
+	}
+	fmt.Printf("Login-Token verschlüsselt in %s gespeichert.\n", configPath)
 	return nil
 }
+
+// askMainInstanceURL asks for the main (central) instance of a sub-instance.
+// A suggestion derived from the instance name is shown with its host, but
+// only used after explicit confirmation: the derived host may belong to a
+// different church, and credentials are sent there on login fallback.
+func askMainInstanceURL(baseURL, current string) (string, error) {
+	// Preferred: the main instance the sub-instance itself redirects its
+	// OAuth login to. A host derived from the name is only a guess (it may
+	// belong to another church) and must be typed in, not confirmed with "j".
+	suggestion, err := discoverMainInstanceURL(baseURL)
+	ok := err == nil && suggestion != ""
+	guess, guessOK := churchtools.MainInstanceURL(baseURL)
+	if !ok && !guessOK && current == "" {
+		return "", nil
+	}
+
+	fmt.Fprintln(os.Stderr, "\nNebeninstanz: Schlägt die Anmeldung fehl, kann sich das Programm über die")
+	fmt.Fprintln(os.Stderr, "Hauptinstanz eurer Gemeinde anmelden. Zugangsdaten gehen dann an diese Adresse.")
+	switch {
+	case ok:
+		fmt.Fprintf(os.Stderr, "Die Nebeninstanz meldet als Hauptinstanz: %s\n", suggestion)
+	case guessOK:
+		fmt.Fprintf(os.Stderr, "Vermutung aus dem Namen (nicht bestätigt, ggf. andere Gemeinde): %s – zum Übernehmen die URL eintippen.\n", guess)
+	}
+	prompt := "Hauptinstanz-URL (leer = keine"
+	if ok {
+		prompt = "Hauptinstanz-URL ([j] = gemeldete übernehmen, leer = keine"
+	}
+	if current != "" {
+		prompt += ", [=] = " + current + " behalten"
+	}
+	answer, err := readLine(prompt + "): ")
+	if err != nil {
+		return "", err
+	}
+
+	answer = strings.TrimSpace(answer)
+	switch strings.ToLower(answer) {
+	case "", "n", "nein", "no", "-":
+		return "", nil
+	case "=":
+		if current != "" {
+			return current, nil
+		}
+	case "j", "ja", "y", "yes":
+		if ok {
+			return suggestion, nil
+		}
+		return "", fmt.Errorf("keine von der Nebeninstanz gemeldete Hauptinstanz – URL eingeben oder leer lassen")
+	}
+
+	// Only a full URL or an instance name with at least two characters is
+	// accepted, so a typo like "x" does not become https://x.church.tools.
+	if len(answer) < 2 {
+		return "", fmt.Errorf("ungültige Eingabe %q für die Hauptinstanz", answer)
+	}
+	mainURL := config.NormalizeBaseURL(answer)
+	if err := config.ValidateInstanceURL("main_url", mainURL); err != nil {
+		return "", err
+	}
+	if strings.EqualFold(mainURL, config.NormalizeBaseURL(baseURL)) {
+		return "", fmt.Errorf("Hauptinstanz %s ist identisch mit der konfigurierten Instanz", mainURL)
+	}
+	if ok && !strings.EqualFold(mainURL, suggestion) {
+		fmt.Fprintf(os.Stderr, "Warnung: %s weicht von der gemeldeten Hauptinstanz %s ab – die Anmeldung über OAuth wird dann abgelehnt.\n", mainURL, suggestion)
+	}
+	return mainURL, nil
+}
+
+// discoverMainInstanceURL is replaceable in tests (no network access).
+var discoverMainInstanceURL = churchtools.DiscoverMainInstanceURL
 
 func runSetupPermissions() error {
 	cfg, err := config.LoadOrEmpty(configPath)

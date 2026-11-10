@@ -18,13 +18,13 @@ func TestParseExportCampusFlagAll(t *testing.T) {
 	}
 }
 
-func TestParseExportCampusFlagNumeric(t *testing.T) {
-	choice, err := parseExportCampusFlag(nil, "42")
-	if err != nil {
-		t.Fatal(err)
+func TestMatchCampusBySearchNumericIsValidated(t *testing.T) {
+	campuses := []churchtools.Campus{{ID: 42, Name: "Nord"}}
+	if id, err := matchCampusBySearch(campuses, "42"); err != nil || id != 42 {
+		t.Fatalf("id = %d, err = %v", id, err)
 	}
-	if choice.all || choice.campusID != 42 {
-		t.Fatalf("choice = %+v", choice)
+	if _, err := matchCampusBySearch(campuses, "7"); err == nil {
+		t.Fatal("unknown campus ID accepted")
 	}
 }
 
@@ -70,5 +70,40 @@ func TestFilterExportPersons(t *testing.T) {
 	all := filterExportPersons(persons, exportInviteFilterAll)
 	if len(all) != 3 {
 		t.Fatalf("all = %+v", all)
+	}
+}
+
+func TestMatchCampusBySearchUmlautsAndDigits(t *testing.T) {
+	campuses := []churchtools.Campus{
+		{ID: 1, Name: "Standort 2"},
+		{ID: 2, Name: "Standort 3"},
+		{ID: 3, Name: "Süd"},
+		{ID: 4, Name: "Sundern"},
+		{ID: 5, Name: "Café Noël"},
+	}
+
+	cases := map[string]int{
+		"standort 2": 1, // digits distinguish the campuses
+		"Standort3":  2,
+		"Süd":        3, // ü → ue, must not match "Sundern"
+		"sued":       3,
+		"cafe noel":  5, // accents removed
+	}
+	for search, want := range cases {
+		id, err := matchCampusBySearch(campuses, search)
+		if err != nil || id != want {
+			t.Errorf("search %q: id = %d, err = %v, want %d", search, id, err, want)
+		}
+	}
+}
+
+func TestMatchCampusBySearchPrefersExactName(t *testing.T) {
+	campuses := []churchtools.Campus{
+		{ID: 1, Name: "Nord"},
+		{ID: 2, Name: "Nordost"},
+	}
+	id, err := matchCampusBySearch(campuses, "nord")
+	if err != nil || id != 1 {
+		t.Fatalf("id = %d, err = %v, want exact match 1", id, err)
 	}
 }

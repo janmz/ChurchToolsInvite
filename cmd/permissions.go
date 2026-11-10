@@ -26,16 +26,16 @@ func ensurePreJoinGroups(client *churchtools.Client, cfg config.Config) error {
 	}
 
 	for _, result := range results {
-		switch {
-		case result.Skipped:
-			fmt.Fprintf(os.Stderr, "Vorab-Gruppe %q: bereits Mitglied\n", result.GroupName)
-		case result.Status == churchtools.MembershipActive:
+		// The status decides; Skipped only says the membership existed
+		// before (a pending or to-be-deleted membership grants no rights).
+		switch result.Status {
+		case churchtools.MembershipActive:
 			msg := result.Message
 			if msg == "" {
-				msg = "Mitgliedschaft aktiv"
+				msg = "Mitgliedschaft aktiv (nur für diesen Lauf)"
 			}
 			fmt.Fprintf(os.Stderr, "Vorab-Gruppe %q: %s\n", result.GroupName, msg)
-		case result.Status == churchtools.MembershipRequested:
+		case churchtools.MembershipRequested:
 			fmt.Fprintf(os.Stderr, "Vorab-Gruppe %q: beantragt", result.GroupName)
 			if result.Message != "" {
 				fmt.Fprintf(os.Stderr, " (%s)", result.Message)
@@ -52,7 +52,7 @@ func ensurePreJoinGroups(client *churchtools.Client, cfg config.Config) error {
 	return nil
 }
 
-func ensureExportPermissions(client *churchtools.Client, cfg config.Config) error {
+func ensureExportPermissions(client *churchtools.Client) error {
 	notes, err := client.EnsurePermissions([]churchtools.PermissionRequirement{
 		{
 			Module:      churchtools.ModuleChurchDB,
@@ -68,7 +68,7 @@ func ensureExportPermissions(client *churchtools.Client, cfg config.Config) erro
 	return nil
 }
 
-func ensureInvitePermissions(client *churchtools.Client, cfg config.Config, syncEmail bool) error {
+func ensureInvitePermissions(client *churchtools.Client, syncEmail bool) error {
 	if !syncEmail {
 		return nil
 	}

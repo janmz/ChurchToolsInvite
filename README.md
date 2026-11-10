@@ -1,6 +1,6 @@
 # ChurchTools_Invite
 
-[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://golang.org)
+[![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go)](https://golang.org)
 [![Release](https://img.shields.io/badge/Release-GitHub-0077B6)](https://github.com/janmz/ChurchToolsInvite/releases)
 [![License: MIT (Modified)](https://img.shields.io/badge/License-MIT--Modified-blue.svg)](LICENSE)
 [![Support: CFI-Kinderhilfe](https://img.shields.io/badge/Support-CFI--Kinderhilfe-0077B6?logo=heart)](https://cfi-kinderhilfe.de/jetzt-spenden?q=VAYACTINVITE)
@@ -40,7 +40,7 @@ invitations** from a CSV file, including:
 
 ## Requirements
 
-- Go 1.22+ (for building from source)
+- Go 1.26+ (for building from source)
 - ChurchTools account with permission **Invite persons to ChurchTools**
 - For export: **export data** permission (group “Personen exportieren”)
 - For e-mail sync on invite: **write access** permission (group “Personen
@@ -100,10 +100,11 @@ Copy `config.example.json` to `config.json` or use environment variables:
 
 | Variable | Description |
 | --- | --- |
-| `CT_BASE_URL` | Instance name (e.g. `emk-rheinmain`) or full URL |
+| `CT_BASE_URL` | Instance name (e.g. `meine-gemeinde`) or full URL (`https://` only; `http://` only for localhost) |
+| `main_url` / `CT_MAIN_URL` | Main (central) instance for a sub-instance login; only used when set explicitly |
 | `CT_LOGIN_TOKEN` | API login token |
 | `CT_USERNAME` / `CT_PASSWORD` | Alternative to token |
-| `delay_ms` | Delay between invitations in milliseconds (default: 500) |
+| `delay_ms` | Pause after each invitation or e-mail update in milliseconds, 0–60000 (default: 500; skipped rows cause no pause) |
 | `campus_id` | Default campus when the user has none (set interactively on first export) |
 | `pre_join_groups` | Comma-separated groups to join in order before export/invite (default in `config.example.json`; set `-` to disable) |
 | `CT_PRE_JOIN_GROUPS` | Environment override for `pre_join_groups` |
@@ -119,12 +120,18 @@ Obtain a login token:
 ### Main and sub-instance (OAuth)
 
 In multi-campus ChurchTools setups, a sub-instance URL may look like
-`https://main-sub.church.tools` (e.g. `https://emk-rheinmain.church.tools`).
+`https://main-sub.church.tools` (e.g. `https://meine-gemeinde-unterstadt.church.tools`).
 User accounts live on the **central instance**
-`https://main.church.tools` (e.g. `https://emk.church.tools`).
+`https://main.church.tools` (e.g. `https://meine-gemeinde.church.tools`).
 
-If direct login on the sub-instance fails, **username/password** auth runs the
-OAuth bridge (when direct login succeeds, OAuth is skipped):
+The central instance is used **only** when it is configured as `main_url`
+(or `CT_MAIN_URL`). `setup init` suggests it for names like `church-site`
+and stores it only after confirmation – a host derived from the name could
+belong to another church, so credentials are never sent to a guessed host.
+
+If direct login on the sub-instance fails and `main_url` is set,
+**username/password** auth runs the OAuth bridge (when direct login succeeds,
+OAuth is skipped):
 
 1. Login on the central instance (`/api/login`)
 2. `oauthclients/…/startlogin` on the sub-instance (redirect to central)
@@ -135,8 +142,8 @@ OAuth bridge (when direct login succeeds, OAuth is skipped):
 `setup init` can then fetch a sub-instance login token automatically
 (`/api/person/me/apitoken`).
 
-If a **login token** is only valid on the central instance, the tool still
-falls back to the central URL for API calls (note in output).
+If a **login token** is only valid on the central instance (and `main_url`
+is set), the tool falls back to the central URL for API calls (note in output).
 
 Check permissions:
 
@@ -204,8 +211,10 @@ id,vorname,nachname,email
 ### Dry-run – Check before sending
 
 `invite --dry-run` runs the same checks as a real invite but **does not** send
-invitations and **does not** change anything in ChurchTools (no e-mail sync).
-For each CSV row it verifies:
+invitations and **does not** change any person (no e-mail sync). Pre-join and
+permission groups are still joined, because reading persons needs those
+rights; like in a real run they are left again at the end if you were not a
+member before. For each CSV row it verifies:
 
 - Does the person ID exist in ChurchTools?
 - Is the person already invited? Detected e.g. via `invitationStatus`
@@ -213,11 +222,15 @@ For each CSV row it verifies:
   ChurchTools; if it differs, simulate e-mail update and re-invite.
   **Registriert** persons are always skipped; `--reinvite` applies only to
   **Eingeladen**
-- Is there an invitation e-mail (CSV and/or ChurchTools)?
+- Is there an invitation e-mail? ChurchTools always invites to the person's
+  ChurchTools address; with `--no-sync-email` a person without one fails.
 - Would an e-mail sync from the CSV be required?
 
-Output: line-by-line log with `OK`, `ÜBERSPRUNGEN` or `FEHLER` (German labels)
-plus a summary. Exit code 1 if at least one row failed.
+Output: each row is printed as soon as it is processed (`OK`, `ÜBERSPRUNGEN`
+or `FEHLER`, German labels), followed by a summary that repeats the failed
+rows. Exit code 1 if at least one row failed. **Ctrl+C** stops after the
+current row, prints the summary and leaves the temporary groups; a second
+Ctrl+C terminates immediately.
 
 Recommended before the first real run. All invite options (`--reinvite`,
 `--no-sync-email`, …) apply to dry-run as well.
@@ -226,28 +239,35 @@ Recommended before the first real run. All invite options (`--reinvite`,
 
 | Command | Purpose |
 | --- | --- |
-| `setup init` | Interactive `config.json` (instance name, masked password with `*`) |
+| `setup init` | Interactive `config.json` (instance name, optional main instance, hidden password/token input) |
 | `setup test` | Test login and connection |
-| `setup token` | Show login token |
+| `setup token` | Fetch your own login token and store it encrypted in `config.json` (never printed) |
 | `setup permissions` | List invite-related permissions |
 | `whoami` | Show logged-in user, campus, group memberships (sorted by name, format `Name  ID`) and instance URL |
-| `export -o FILE` | Export persons to invite CSV format (default `personen.csv`; `-` = stdout); by default only not-yet-invited persons |
+| `export -o FILE` | Export persons to invite CSV format (default `personen.csv`; `-` = stdout, hints go to stderr); by default only not-yet-invited persons |
+| `export --force` | Overwrite an existing output file (otherwise the export stops) |
 | `export -i` / `--invited` | Export all invitation statuses (NEU, Eingeladen, Registriert) |
 | `export --interactive` | Choose campus, optional filters (person status, group) and invitation status (`[n]` Neu, `[e]` Eingeladen, `[r]` Registriert) |
 | `export --campus VALUE` | Campus by ID or unique name substring (see CSV format); only needed for a different campus or when the user has no campus |
 | `export --campus all` | All campuses (alias for `--all-campuses`) |
 | `export --all-campuses` | No campus filter |
-| `export --status-id ID` | Export persons with this ChurchTools person status only (member, guest, …) |
-| `export --group-id ID` | Export group members only |
+| `export --status VALUE` | Only persons with this person status (member, guest, …) – ID or name, e.g. `--status Mitglied`; old name `--status-id` still works. Not the invitation status of the CSV column `status` |
+| `export --group VALUE` | Only members of this group – ID or name (unique part is enough); old name `--group-id` still works |
+| `list statuses` | Person statuses of your instance with ID and name (each church defines its own, IDs differ per instance) |
+| `list groups [--campus X] [--search TEXT]` | Groups with ID and name |
+| `list campuses` | Campuses with ID and name |
 | `export --skip-permission-request` | Do not request group membership for missing export rights |
 | `export --skip-pre-join-groups` | Skip pre-join groups before export |
 | `invite -f FILE` | Send invitations |
 | `invite -f FILE --dry-run` | Check/simulate without sending (see above) |
-| `invite -f FILE --delay-ms MS` | Delay between invitations (0 = `delay_ms` from config) |
+| `invite -f FILE --delay-ms MS` | Pause after each invitation/e-mail update, 0–60000 (0 = `delay_ms` from config) |
 | `invite -f FILE --no-sync-email` | Skip CSV e-mail sync (mismatched e-mail → error) |
 | `invite -f FILE --reinvite` | Re-invite persons with status **Eingeladen**; **Registriert** is always skipped |
 | `invite -f FILE --skip-permission-request` | Do not request group membership for missing rights |
 | `invite -f FILE --skip-pre-join-groups` | Skip pre-join groups before invite |
+| `invite -f FILE --yes` / `-y` | Run the plan without asking (scripts); not allowed when the API runs on the main instance |
+| `invite -f FILE --ignore-name-mismatch` | Also process rows whose CSV name differs from the ChurchTools person |
+| `invite -f FILE --allow-single-email` | If ChurchTools rejects the address list, replace the primary e-mail (the previous address is lost) |
 
 ## Development
 
@@ -260,10 +280,58 @@ main` has no tests). Use `go test ./...` — see [TESTING.md](TESTING.md) for
 coverage, conventions, and manual checks against a real ChurchTools instance.
 
 ```bash
+scripts/ci.sh      # or scripts/ci.ps1: gofmt, go vet, staticcheck, tests, build
 go test ./...
-go vet ./...
 go build -o churchtools-invite .
 ```
+
+`staticcheck` (v0.8.2) needs Go 1.26 or newer; on older toolchains set
+`SKIP_STATICCHECK=1`.
+
+## Credentials and privacy
+
+- **Encrypted secrets:** `login_token` and `password` in `config.json` are
+  encrypted with [sconfig](https://github.com/janmz/sconfig) on first start
+  (`login_token_secure`, `secure_password`; the plaintext field then shows a
+  marker). The encryption is bound to this computer – on another PC enter the
+  secrets again. To change a secret, write the new plaintext value into
+  `login_token` / `password`.
+- `config.json` must be located below the program directory, the current
+  working directory or your home directory (sconfig rule).
+- `config.json` and exported CSV files are readable only by the current user
+  (Windows ACL, `0600` elsewhere). Environment variables (`CT_*`) are never
+  written to the file.
+- **No fallback to guessed hosts:** credentials are only sent to `base_url`
+  and, if configured, `main_url`. Redirects to another host or scheme are
+  refused, also in the OAuth bridge (only base and main instance, https).
+  `setup init` suggests the main instance the sub-instance itself reports;
+  a host derived from the name has to be typed in. A login-token fallback to
+  the main instance only happens on HTTP 401, and `invite` then warns and
+  requires interactive confirmation.
+- **Temporary groups:** groups from `pre_join_groups` and permission groups
+  that the tool joins for a run are left again at the end of `export` /
+  `invite`; memberships you had before stay untouched. Joined groups are
+  recorded in `.churchtools-invite-groups.json` next to `config.json`; if a
+  run ends without leaving them (crash, closed window, second Ctrl+C), the
+  next start offers to leave them. Joining via the public group signup form
+  is only done after confirmation.
+- `setup token` stores only **your own** token, encrypted; it is never printed.
+- The CSV contains personal data: delete it after the invitations (the tool
+  reminds you). Cells starting with `= + - @` are prefixed with `'` against
+  formula injection; `invite` removes the prefix again. A person ID listed
+  twice or an invalid e-mail address (exactly one plain address per cell) is
+  rejected before anything is sent. CSV files are restricted to the current
+  user when they are read.
+- **Plan and confirmation:** before a real `invite` run the CSV is checked
+  like a dry-run; the plan lists the number of invitations and every e-mail
+  change (old → new) and asks `[j/N]` (`--yes` for scripts). Rows whose CSV
+  name does not match the ChurchTools person (shifted row, wrong ID) fail
+  unless `--ignore-name-mismatch` is given, because the account activation
+  would otherwise go to someone else.
+- Result lines of a real run mask e-mail addresses (`ma***@example.org`);
+  full addresses only appear in the dry-run and in the plan. Text from the
+  server or the CSV is printed without control characters.
+- Release archives come with a `SHA256SUMS` file (`sha256sum -c SHA256SUMS`).
 
 ## Contributing
 

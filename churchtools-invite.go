@@ -11,13 +11,17 @@ package main
  * using ChurchTools for managing their contacts and communications.
  *
  *
- * Version: 2.6.3.51 (in version.go zu ändern)
+ * Version: 2.8.0.56 (in version.go zu ändern)
  *
  * Author: Jan Neuhaus, VAYA Consulting, https://vaya-consulting.de/development
  *
  * Repository: https://github.com/janmz/ChurchToolsInvite
  *
  * ChangeLog:
+ *  10.11.26	2.8.0	Feature: list statuses|groups|campuses, --status/--group accept ID or name
+ *  10.11.26	2.7.2	Security: audit fixes (invite plan + name check, group state file, OAuth redirects, e-mail validation, Go 1.26, checksums)
+ *  10.11.26	2.7.1	Fix: code review (setup credentials/main_url, progress output, Ctrl+C clean-up, e-mail sync, atomic writes, fewer API calls)
+ *  10.11.26	2.7.0	Security: optimizations from churchtools-dup (central HTTP layer, CSRF on writes, encrypted secrets, no guessed hosts, temporary groups left, CSV hardening)
  *  19.08.26	2.6.3	Fix: usage and parameter error messages
  *  20.06.26	2.6.2	Fixes: auto-signup of groups will be used, groups displayed with whoami, pre_join_groups corrected, no invitation to registered users, --interactive has new filter for invitation status
  *  20.06.26	2.6.0	Feature: Now only uninvited persons are exported unless --invited is given. --campus-id becomes --campus and accepts (partial) names, csv includes campus and status
@@ -39,11 +43,13 @@ import (
 	"os"
 
 	cmd "github.com/janmz/churchtools-invite/cmd"
+	"github.com/janmz/churchtools-invite/internal/textnorm"
 )
 
 func main() {
 	if err := cmd.Execute(fmt.Sprintf("%s (%s)", Version, BuildTime)); err != nil {
-		fmt.Fprintf(os.Stderr, "\n%s\n", err)
+		// Errors may quote CSV or server text: no control sequences.
+		fmt.Fprintf(os.Stderr, "\n%s\n", textnorm.Printable(err.Error()))
 		os.Exit(1)
 	}
 }

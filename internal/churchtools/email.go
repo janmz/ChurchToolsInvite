@@ -36,21 +36,7 @@ func PrepareEmailUpdate(csvEmail string, person Person) EmailSyncPlan {
 		return EmailSyncPlan{Detail: "e-mail bereits identisch"}
 	}
 
-	if current == "" {
-		labelID := defaultContactLabelID(existing)
-		return EmailSyncPlan{
-			Needed:  true,
-			Primary: csvEmail,
-			Emails: []PersonEmail{{
-				Email:          csvEmail,
-				IsDefault:      true,
-				ContactLabelID: labelID,
-			}},
-			Detail: fmt.Sprintf("primäre e-mail gesetzt auf %s", csvEmail),
-		}
-	}
-
-	if strings.EqualFold(current, csvEmail) {
+	if current != "" && strings.EqualFold(current, csvEmail) {
 		return EmailSyncPlan{Detail: "e-mail bereits identisch"}
 	}
 
@@ -106,24 +92,25 @@ func PrepareEmailUpdate(csvEmail string, person Person) EmailSyncPlan {
 				updated[idx].IsDefault = false
 			}
 		} else {
-		updated = append(updated, PersonEmail{
-			Email:          current,
-			IsDefault:      false,
-			ContactLabelID: oldLabelID,
-		})
+			updated = append(updated, PersonEmail{
+				Email:          current,
+				IsDefault:      false,
+				ContactLabelID: oldLabelID,
+			})
 		}
 	}
 
+	// Without a primary address ("email" empty) the other entries in
+	// "emails" are kept as well: the PATCH replaces the whole list.
+	detail := fmt.Sprintf("primäre e-mail gesetzt auf %s", csvEmail)
+	if current != "" {
+		detail = fmt.Sprintf("primäre e-mail %s -> %s, bisherige als zusätzliche behalten: %s", current, csvEmail, current)
+	}
 	return EmailSyncPlan{
 		Needed:  true,
 		Primary: csvEmail,
 		Emails:  updated,
-		Detail: fmt.Sprintf(
-			"primäre e-mail %s -> %s, bisherige als zusätzliche behalten: %s",
-			current,
-			csvEmail,
-			current,
-		),
+		Detail:  detail,
 	}
 }
 
@@ -175,13 +162,4 @@ func contactLabelForEmail(entries []PersonEmail, email string) int {
 		}
 	}
 	return 0
-}
-
-func containsEmail(entries []PersonEmail, email string) bool {
-	for _, entry := range entries {
-		if strings.EqualFold(strings.TrimSpace(entry.Email), email) {
-			return true
-		}
-	}
-	return false
 }

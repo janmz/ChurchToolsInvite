@@ -17,8 +17,14 @@ func TestCampusName(t *testing.T) {
 	if got := campusName(campuses, 2); got != "Nord" {
 		t.Fatalf("got %q", got)
 	}
-	if got := campusName(campuses, 99); got != "ID 99" {
+	if got := campusName(campuses, 99); got != "" {
 		t.Fatalf("got %q", got)
+	}
+	if got := formatCampus("", 99); got != "ID 99" {
+		t.Fatalf("formatCampus unknown = %q", got)
+	}
+	if got := formatCampus("Nord", 2); got != `"Nord" (ID 2)` {
+		t.Fatalf("formatCampus = %q", got)
 	}
 }
 

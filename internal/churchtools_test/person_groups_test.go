@@ -80,7 +80,7 @@ func TestListPersonGroupsFlatItems(t *testing.T) {
 	mux.HandleFunc("/api/persons/9/groups", func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"data": []map[string]any{
-				{"id": 5, "name": "Duplikate"},
+				{"id": 5, "name": "Personen Administration"},
 			},
 		})
 	})
@@ -97,7 +97,7 @@ func TestListPersonGroupsFlatItems(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(groups) != 1 || groups[0].ID != 5 || groups[0].Name != "Duplikate" {
+	if len(groups) != 1 || groups[0].ID != 5 || groups[0].Name != "Personen Administration" {
 		t.Fatalf("unexpected groups: %+v", groups)
 	}
 }

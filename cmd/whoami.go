@@ -5,6 +5,7 @@ import (
 
 	churchtools "github.com/janmz/churchtools-invite/internal/churchtools"
 	config "github.com/janmz/churchtools-invite/internal/config"
+	"github.com/janmz/churchtools-invite/internal/textnorm"
 	"github.com/spf13/cobra"
 )
 
@@ -33,22 +34,18 @@ func runWhoAmI() error {
 	}
 
 	fmt.Printf("Person-ID:   %d\n", user.ID)
-	fmt.Printf("Name:        %s %s\n", user.FirstName, user.LastName)
-	fmt.Printf("E-Mail:      %s\n", user.Email)
+	fmt.Printf("Name:        %s %s\n", textnorm.Printable(user.FirstName), textnorm.Printable(user.LastName))
+	fmt.Printf("E-Mail:      %s\n", textnorm.Printable(user.Email))
 
 	if user.CampusID > 0 {
 		fmt.Printf("Standort-ID: %d\n", user.CampusID)
 		if name := campusDisplayName(client, user.CampusID); name != "" {
-			fmt.Printf("Standort:    %s\n", name)
+			fmt.Printf("Standort:    %s\n", textnorm.Printable(name))
 		}
 	} else {
 		fmt.Println("Standort-ID: nicht zugeordnet")
 		if cfg.CampusID > 0 {
-			if name := campusDisplayName(client, cfg.CampusID); name != "" {
-				fmt.Printf("Standard-Standort (config): %s (ID %d)\n", name, cfg.CampusID)
-			} else {
-				fmt.Printf("Standard-Standort (config): ID %d\n", cfg.CampusID)
-			}
+			fmt.Printf("Standard-Standort (config): %s\n", formatCampus(campusDisplayName(client, cfg.CampusID), cfg.CampusID))
 		}
 	}
 
@@ -62,7 +59,7 @@ func runWhoAmI() error {
 	} else {
 		fmt.Println("Gruppen:")
 		for _, group := range groups {
-			fmt.Printf("  %s  %d\n", churchtools.PlainGroupName(group.Name), group.ID)
+			fmt.Printf("  %s  %d\n", textnorm.Printable(churchtools.PlainGroupName(group.Name)), group.ID)
 		}
 	}
 

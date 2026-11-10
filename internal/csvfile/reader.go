@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 	"strings"
+
+	"github.com/janmz/churchtools-invite/internal/fileacl"
+	"github.com/janmz/churchtools-invite/internal/iolimit"
 )
 
 // Entry represents one person row from the CSV file.
@@ -26,8 +28,14 @@ var lastNameColumns = []string{"lastname", "last_name", "nachname"}
 var emailColumns = []string{"email", "e-mail", "mail"}
 
 // Read parses a CSV file and returns person entries.
+// The file holds personal data; files from older versions or copied from
+// elsewhere are restricted to the current user (only a warning if that is
+// not possible).
 func Read(path string) ([]Entry, error) {
-	data, err := os.ReadFile(path)
+	data, err := iolimit.ReadFile(path, iolimit.MaxCSVBytes)
+	if err == nil {
+		fileacl.RestrictOrWarn(path)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("csv öffnen: %w", err)
 	}
@@ -48,6 +56,7 @@ func Read(path string) ([]Entry, error) {
 	}
 
 	var entries []Entry
+	firstLine := make(map[int]int)
 	line := 1
 	for {
 		line++
@@ -67,6 +76,11 @@ func Read(path string) ([]Entry, error) {
 		if err != nil {
 			return nil, err
 		}
+		// A person listed twice would be processed (and possibly invited) twice.
+		if first, ok := firstLine[entry.PersonID]; ok {
+			return nil, fmt.Errorf("zeile %d: Person-ID %d steht bereits in Zeile %d", line, entry.PersonID, first)
+		}
+		firstLine[entry.PersonID] = line
 		entries = append(entries, entry)
 	}
 
@@ -131,13 +145,18 @@ func parseRecord(line int, record []string, index map[string]int) (Entry, error)
 		PersonID: personID,
 	}
 	if col, ok := index["firstname"]; ok {
-		entry.FirstName = strings.TrimSpace(fieldAt(record, col))
+		entry.FirstName = unescapeFormula(strings.TrimSpace(fieldAt(record, col)))
 	}
 	if col, ok := index["lastname"]; ok {
-		entry.LastName = strings.TrimSpace(fieldAt(record, col))
+		entry.LastName = unescapeFormula(strings.TrimSpace(fieldAt(record, col)))
 	}
 	if col, ok := index["email"]; ok {
-		entry.Email = strings.TrimSpace(fieldAt(record, col))
+		entry.Email = unescapeFormula(strings.TrimSpace(fieldAt(record, col)))
+		if entry.Email != "" {
+			if err := validateEmail(entry.Email); err != nil {
+				return Entry{}, fmt.Errorf("zeile %d: %w", line, err)
+			}
+		}
 	}
 	return entry, nil
 }

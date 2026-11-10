@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -50,8 +51,16 @@ func setupSubcommandArgs(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// setupSubcommandRequired is the RunE of commands that only group
+// subcommands (setup, list): it shows the usage and names the subcommands.
 func setupSubcommandRequired(cmd *cobra.Command, args []string) error {
 	applyGermanFlagLabels(cmd)
 	_ = cmd.Usage()
-	return fmt.Errorf("bitte einen Unterbefehl angeben: init, test, token, permissions")
+	var names []string
+	for _, sub := range cmd.Commands() {
+		if sub.IsAvailableCommand() {
+			names = append(names, sub.Name())
+		}
+	}
+	return fmt.Errorf("bitte einen Unterbefehl angeben: %s", strings.Join(names, ", "))
 }

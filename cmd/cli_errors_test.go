@@ -8,9 +8,9 @@ import (
 
 func TestTranslateCLIError(t *testing.T) {
 	tests := []struct {
-		name    string
-		in      string
-		want    string
+		name     string
+		in       string
+		want     string
 		wantSame bool
 	}{
 		{

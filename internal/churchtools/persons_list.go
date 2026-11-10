@@ -7,8 +7,6 @@ import (
 	"strconv"
 )
 
-const defaultPersonPageSize = 100
-
 // PersonListOptions filters persons loaded from ChurchTools.
 type PersonListOptions struct {
 	IDs      []int
@@ -50,7 +48,7 @@ func (c *Client) buildPersonQuery(opts PersonListOptions, limit int) url.Values 
 }
 
 func (c *Client) listAllPersons(opts PersonListOptions) ([]Person, error) {
-	query := c.buildPersonQuery(opts, defaultPersonPageSize)
+	query := c.buildPersonQuery(opts, defaultPageSize)
 
 	items, err := c.fetchAPIPages("/persons", query)
 	if err != nil {
@@ -145,6 +143,7 @@ func personIDFromMember(raw json.RawMessage) (int, bool) {
 	return 0, false
 }
 
+// intFromAny converts a decoded JSON number (or numeric string) to int.
 func intFromAny(value any) (int, bool) {
 	switch v := value.(type) {
 	case float64:
@@ -157,6 +156,12 @@ func intFromAny(value any) (int, bool) {
 			return 0, false
 		}
 		return int(n), true
+	case string:
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return 0, false
+		}
+		return n, true
 	default:
 		return 0, false
 	}

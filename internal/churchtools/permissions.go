@@ -1,17 +1,16 @@
 package churchtools
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
 
 const (
-	ModuleChurchCore = "churchcore"
-	ModuleChurchDB   = "churchdb"
+	ModuleChurchDB = "churchdb"
 
-	PermInvitePersons = "invite persons"
-	PermExportData    = "export data"
-	PermWriteAccess   = "write access"
+	PermExportData  = "export data"
+	PermWriteAccess = "write access"
 )
 
 // HasModulePermission checks a global permission flag from /permissions/global.
@@ -38,15 +37,6 @@ func HasModulePermission(perms map[string]any, module, name string) bool {
 	}
 }
 
-// HasModulePermission loads global permissions and checks one flag.
-func (c *Client) HasModulePermission(module, name string) (bool, error) {
-	perms, err := c.GlobalPermissions()
-	if err != nil {
-		return false, err
-	}
-	return HasModulePermission(perms, module, name), nil
-}
-
 // PermissionRequirement describes a missing permission and its grant group.
 type PermissionRequirement struct {
 	Module      string
@@ -68,6 +58,8 @@ const (
 type MembershipRequestResult struct {
 	Status  MembershipRequestStatus
 	Message string
+	// AlreadyMember is true when the membership existed before the request.
+	AlreadyMember bool
 }
 
 // EnsurePermissions requests group membership when required permissions are missing.
@@ -96,12 +88,16 @@ func (c *Client) EnsurePermissions(reqs []PermissionRequirement) ([]string, erro
 		}
 
 		group, groupName, err := c.FindGroupByNames(req.GroupNames)
-		if err != nil {
+		if errors.Is(err, ErrGroupNotFound) {
 			notes = append(notes, fmt.Sprintf(
 				"%s fehlt; keine passende Gruppe gefunden (%s)",
 				req.Description,
 				formatGroupNames(req.GroupNames),
 			))
+			continue
+		}
+		if err != nil {
+			notes = append(notes, fmt.Sprintf("%s fehlt; %v", req.Description, err))
 			continue
 		}
 

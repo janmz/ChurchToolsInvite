@@ -4,10 +4,10 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 
 	churchtools "github.com/janmz/churchtools-invite/internal/churchtools"
+	"github.com/janmz/churchtools-invite/internal/fileacl"
 )
 
 // ExportHeader is the canonical CSV header for export files.
@@ -47,17 +47,16 @@ func EntriesFromPersons(persons []churchtools.Person, campusNames map[int]string
 }
 
 // Write stores entries in the invite CSV format (UTF-8 with BOM for Excel).
+// The file is written atomically (an existing file is only replaced once the
+// new one is complete) and, as it holds personal data, restricted to the
+// current user.
 func Write(path string, entries []Entry) error {
-	file, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("csv erstellen: %w", err)
+	if err := fileacl.WriteAtomic(path, func(w io.Writer) error {
+		return WriteTo(w, entries)
+	}); err != nil {
+		return fmt.Errorf("csv schreiben: %w", err)
 	}
-	defer file.Close()
-
-	if err := WriteTo(file, entries); err != nil {
-		return err
-	}
-	return file.Close()
+	return nil
 }
 
 // WriteTo writes entries to w using the canonical export format.
@@ -74,11 +73,11 @@ func WriteTo(w io.Writer, entries []Entry) error {
 	for _, entry := range entries {
 		if err := writer.Write([]string{
 			strconv.Itoa(entry.PersonID),
-			entry.FirstName,
-			entry.LastName,
-			entry.Email,
-			entry.Campus,
-			entry.Status,
+			escapeFormula(entry.FirstName),
+			escapeFormula(entry.LastName),
+			escapeFormula(entry.Email),
+			escapeFormula(entry.Campus),
+			escapeFormula(entry.Status),
 		}); err != nil {
 			return fmt.Errorf("zeile schreiben: %w", err)
 		}

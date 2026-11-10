@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Pre-commit checks (enable once: git config core.hooksPath .githooks).
+# Runs the local CI script (tidy check, gofmt, vet, staticcheck, tests,
+# build) and checks that every English doc has its German counterpart.
+set -euo pipefail
+
+for doc in README CONTRIBUTING SECURITY TESTING; do
+  if [ ! -f "$doc.md" ] || [ ! -f "$doc.de.md" ]; then
+    echo "pre-commit: $doc.md und $doc.de.md müssen beide vorhanden sein." >&2
+    exit 1
+  fi
+done
+
+# Never commit person lists, real config or reports.
+if git diff --cached --name-only | grep -Eiq '(^|/)(config\.json|securityreport\.md|codereview\.md)$|\.(csv|xlsx)$'; then
+  echo "pre-commit: Datei mit Zugangsdaten, Personendaten oder Prüfbericht gestaged – bitte entfernen." >&2
+  exit 1
+fi
+
+bash scripts/ci.sh

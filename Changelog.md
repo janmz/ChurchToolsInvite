@@ -2,6 +2,252 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.8.0.56] - 2026-11-10 17:22:27
+
+### Added
+
+- Neuer Befehl `list` mit `list statuses`, `list groups [--campus X]
+  [--search TEXT]` und `list campuses`: zeigt ID und Name der Werte für
+  `export --status`, `--group` und `--campus` (jede Gemeinde legt eigene
+  Status und Gruppen an, die IDs unterscheiden sich je Instanz)
+
+### Changed
+
+- `export --status` und `export --group` akzeptieren ID **oder** Namen
+  (exakter Name vor eindeutigem Teilstring, Umlaute/Groß-/Kleinschreibung
+  egal), z. B. `--status Mitglied`; `--status-id`/`--group-id` funktionieren
+  weiter als Alias
+- Unbekannte IDs, nicht gefundene oder mehrdeutige Namen werden vor dem
+  Export abgelehnt; die Meldung nennt die gültigen Werte (bei vielen
+  Einträgen den passenden `list`-Befehl). Das gilt jetzt auch für
+  `--campus` mit ID
+- Hilfetext und README unterscheiden Personenstatus (`--status`) und
+  Einladungsstatus (CSV-Spalte `status`)
+
+## [2.7.2.55] - 2026-11-10 17:09:11
+
+Umsetzung des Sicherheitsaudits vom 2026-11-10 (Nr. 1 – 15).
+
+### Security
+
+- `invite` vergleicht den Namen aus der CSV mit der Person in ChurchTools
+  (Umlaute/Akzente/Groß-/Kleinschreibung egal); bei Abweichung schlägt die
+  Zeile fehl, außer mit `--ignore-name-mismatch` – eine verrutschte Zeile
+  schickt sonst die Kontoaktivierung an eine fremde Adresse (Nr. 2)
+- Vor einem echten `invite`-Lauf wird ein Plan erstellt (Zahl der
+  Einladungen, jede E-Mail-Änderung alt → neu, fehlerhafte Zeilen) und mit
+  `[j/N]` bestätigt; `--yes`/`-y` für Skripte (Nr. 2)
+- Temporär beigetretene Gruppen werden in `.churchtools-invite-groups.json`
+  (neben `config.json`, nur für den Benutzer lesbar) vermerkt; nach Absturz,
+  geschlossenem Fenster oder zweitem Strg+C bietet der nächste Start den
+  Austritt an. Nicht verlassene Gruppen bleiben vermerkt (Nr. 3)
+- Temporärdateien beim atomaren Schreiben werden vor dem ersten Byte auf den
+  Benutzer beschränkt; `.*.tmp-*` in `.gitignore` (Nr. 4)
+- E-Mail-Adressen aus der CSV werden geprüft (genau eine einfache Adresse,
+  max. 254 Zeichen, keine Leer-/Steuerzeichen); das Ersetzen der primären
+  Adresse bei abgelehnter Adressliste nur noch mit `--allow-single-email`
+  (Nr. 5)
+- CSV-Dateien werden beim Lesen auf den aktuellen Benutzer beschränkt
+  (Warnung, wenn nicht möglich) (Nr. 1)
+- Token-Fallback auf `main_url` nur noch bei HTTP 401; läuft die API über
+  die Hauptinstanz, warnt `invite` und verlangt eine interaktive Bestätigung
+  (`--yes` wird abgelehnt) (Nr. 6)
+- Ist der Mitgliedschaftsstatus nicht lesbar, wird vor dem Beitritt die
+  Gruppenliste der Person geprüft – eine bestehende Mitgliedschaft wird nie
+  als neu gewertet und am Ende entfernt (Nr. 7)
+- `setup init` schlägt die Hauptinstanz vor, an die die Nebeninstanz ihren
+  OAuth-Login selbst weiterleitet; ein aus dem Namen geratener Host muss
+  eingetippt werden (`j` gilt dafür nicht) (Nr. 8)
+- OAuth-Brücke: Weiterleitungen nur noch zu Haupt- und Nebeninstanz und nur
+  per https (http nur localhost); die Nebeninstanz muss genau die
+  konfigurierte Hauptinstanz verwenden; Antworten größenbegrenzt (Nr. 9)
+- Namen und Texte von Server und CSV werden ohne Steuerzeichen und
+  Bidi-Steuerzeichen ausgegeben (Nr. 10)
+- Ergebniszeilen eines echten Laufs maskieren E-Mail-Adressen; vollständige
+  Adressen nur im Dry-Run und im Plan (Nr. 11)
+- `setup init` fragt, bevor ein dauerhafter Login-Token abgerufen bzw.
+  erzeugt wird (Nr. 12)
+- Passwort-/Token-Eingabe ohne Konsole (z. B. Git Bash/mintty) zeigt einen
+  Hinweis, dass die Eingabe sichtbar sein kann (Nr. 13)
+
+### Changed
+
+- Go-Mindestversion 1.26 (Go 1.25 erhält keine Sicherheitsupdates mehr);
+  CI-Testjob mit Go 1.26 (Nr. 14)
+- Release: Build ohne Actions-Cache, `SHA256SUMS` für alle Archive (Nr. 15)
+- Pre-Commit-Hook `.githooks/pre-commit` (aktivieren mit
+  `git config core.hooksPath .githooks`): CI-Skript, EN/DE-Dokupaare,
+  Sperre für CSV, `config.json` und Prüfberichte (Nr. 15)
+
+### Dependencies
+
+- `golang.org/x/sys` v0.29.0 → v0.49.0, `golang.org/x/term` v0.28.0 →
+  v0.47.0, `github.com/spf13/cobra` v1.9.1 → v1.10.2 (`spf13/pflag` v1.0.9);
+  alle mindestens 14 Tage veröffentlicht (Nr. 14)
+
+### Tests
+
+- Neue Tests für OAuth-Discovery und abgelehnte Fremd-Weiterleitungen,
+  Hauptinstanz-Vorschlag, Zustandsdatei der Gruppen, ACL der Temp-Datei,
+  E-Mail-Prüfung, verweigerten Einzeladress-Fallback, Steuerzeichenfilter
+
+## [2.7.1.54] - 2026-11-10 16:32:38
+
+Umsetzung des Code-Reviews vom 2026-11-10 (CR-1 … CR-24).
+
+### Fixed
+
+- `setup init`/`setup token`: Beim Wechsel zwischen Token und Passwort wird
+  auch die verschlüsselte Kopie der alten Zugangsdaten entfernt; bisher war
+  nach dem Speichern wieder der alte Token aktiv (CR-1)
+- `setup init`: Die Antwort `n`/`nein`/`-` auf die Frage nach der
+  Hauptinstanz bedeutet „keine“ (vorher wurde daraus
+  `https://n.church.tools`); Eingaben werden geprüft, `main_url` gleich
+  `base_url` wird abgelehnt (CR-2)
+- `export -o - --interactive`: Status- und Hinweiszeilen gehen nach stderr,
+  die CSV auf stdout bleibt sauber (CR-3)
+- Strg+C bricht nach der aktuellen Zeile bzw. Eingabe ab; temporär
+  beigetretene Gruppen werden dabei wieder verlassen, die Zusammenfassung
+  wird ausgegeben; ein zweites Strg+C beendet sofort (CR-4)
+- E-Mail-Abgleich: Ist keine primäre Adresse gesetzt, bleiben die übrigen
+  Adressen der Person erhalten (CR-5)
+- `--no-sync-email`: Personen ohne E-Mail in ChurchTools werden schon im
+  Dry-Run als Fehler gemeldet (ChurchTools lädt nur an die eigene Adresse
+  ein) (CR-6)
+- Ausweich-PATCH mit nur einer Adresse nur noch bei HTTP 400/422; die Meldung
+  sagt dann korrekt, dass die bisherige Adresse ersetzt wurde (CR-9)
+- Instanzen ohne Standorte: kein Menüfehler mehr; ohne Eingabemöglichkeit
+  Hinweis auf `--campus` (CR-10)
+- Fehlende Unterstützung für Zugriffsrechte (FAT, Netzlaufwerk) führt nur
+  noch zu einer Warnung statt jeden Befehl abzubrechen (CR-11)
+- Fehlermeldungen enthalten den Grund vom Server (z. B. warum eine Einladung
+  abgelehnt wurde) (CR-12)
+- Rechtegruppen: mehrdeutige Gruppennamen und Netzfehler werden gemeldet
+  statt „keine passende Gruppe gefunden“ (CR-13)
+- Vorab-Gruppen: beantragte oder zum Löschen markierte Mitgliedschaften
+  erscheinen nicht mehr als „bereits Mitglied“ (CR-14)
+- Echter Lauf meldet „übersprungen“ statt „würde überspringen“ (CR-15)
+- Standortanzeige ohne doppelte ID („ID 7 (ID 7)“), Menüpunkt „Alle
+  Standorte“ ohne „ID -1“ (CR-16)
+- `config.json` und CSV werden atomar geschrieben (Temp-Datei + Umbenennen);
+  ein Abbruch hinterlässt keine leere Datei mehr (CR-17)
+
+### Changed
+
+- Dry-Run: Vorab- und Rechtegruppen werden weiterhin beigetreten (Leserechte),
+  am Ende aber – wie bei jedem Lauf – wieder verlassen, wenn vorher keine
+  Mitgliedschaft bestand (CR-7, nach Rückfrage abgewandelt)
+- `invite` gibt jedes Ergebnis sofort aus; die Zusammenfassung wiederholt
+  nur die Fehler (CR-8)
+- `delay_ms`/`--delay-ms`: nur 0–60000 ms; gewartet wird nur nach einer
+  Einladung oder E-Mail-Änderung, nicht nach übersprungenen Zeilen (CR-18,
+  CR-19)
+- `invite` lädt die Personen der CSV blockweise (50 je Anfrage) statt
+  einzeln; Standorte und Gruppen des Benutzers werden je Lauf bzw. Durchgang
+  nur einmal geladen (CR-20)
+- `setup init` schreibt keine Standardwerte (`delay_ms`, `pre_join_groups`)
+  mehr fest in die config; leere Eingabe behält den bisherigen Wert (CR-23)
+- CI prüft `go.mod`/`go.sum` mit `go mod tidy -diff`, statt sie still zu
+  reparieren (CR-24)
+
+### Removed
+
+- Ungenutzter Code: `maskEmail`, `allowSkip` in Menüs, `PermInvitePersons`,
+  `ModuleChurchCore`, `Client.HasModulePermission`, ungenutzte
+  `cfg`-Parameter; irreführende Kommentare und Testnamen aus dem dup-Merge
+  korrigiert (CR-21, CR-22)
+
+### Tests
+
+- Neue Tests für Login-Wechsel mit verschlüsselten Feldern, Hauptinstanz-
+  Eingaben, Standardwerte, `delay_ms`-Grenzen, atomares Schreiben,
+  E-Mail-Plan ohne Primäradresse, Fallback nur bei 400/422,
+  Server-Fehlertext, mehrdeutige Gruppen, Vorabladen der Personen, Pausen nur
+  nach Schreibzugriffen, sofortige Ausgabe und Abbruch
+
+## [2.7.0.53] - 2026-11-10 12:04:13
+
+Übernahme der Optimierungen aus `churchtools-dup` (Code-Review und
+Sicherheitsaudit vom 2026-11-10, Versionen 1.3.0.34 – 1.3.2.36).
+
+### Security
+
+- Keine Zugangsdaten mehr an abgeleitete Hosts: Der Login-Fallback auf eine
+  „Hauptinstanz“ wird nur noch mit ausdrücklich gesetztem `main_url`
+  (`CT_MAIN_URL`) genutzt; `setup init` schlägt sie vor und übernimmt sie nur
+  nach Bestätigung
+- `login_token` und `password` werden mit `github.com/janmz/sconfig/v3`
+  rechnergebunden verschlüsselt in `config.json` gespeichert; vorhandene
+  Klartextwerte werden beim ersten Start umgewandelt
+- `config.json` und exportierte CSV-Dateien nur für den aktuellen Benutzer
+  lesbar (Windows-ACL ohne Vererbung, sonst `0600`)
+- Gruppen nur noch über den exakten Namen (Sortiernummern-Markup wird
+  ignoriert); öffentliche Gruppenanmeldung nur nach Rückfrage
+- CSV-Export entschärft Zellen mit `= + - @`/Tab/CR (Formel-Injection);
+  `invite` stellt die Werte wieder her
+- `setup token`: Option `--person-id` entfernt (keine Tokens fremder Konten);
+  der eigene Token wird nicht mehr ausgegeben, sondern nach Rückfrage
+  verschlüsselt gespeichert
+- Nur `https://` für `base_url`/`main_url` (`http://` nur localhost);
+  Weiterleitungen auf anderen Host oder anderes Schema werden abgelehnt
+- Login-Token wird verdeckt eingegeben; Passworteingabe ohne Sternchen
+- Servertexte in Meldungen gekürzt und ohne Steuerzeichen
+
+### Fixed
+
+- Passwort-Sitzungen: Einladung (`POST /persons/{id}/invite`), E-Mail-Sync
+  (`PATCH /persons/{id}`) und Gruppenbeitritt senden jetzt das CSRF-Token im
+  Header `CSRF-Token`; neuere ChurchTools-Versionen lehnen Schreibzugriffe aus
+  einer Sitzung sonst ab
+- Alle API-Aufrufe laufen über eine zentrale HTTP-Schicht: Größenlimit je
+  Antwort (32 MiB) und je Liste (512 MiB), eine Wiederholung bei HTTP 429,
+  erneute Anmeldung nach Sitzungsablauf auch bei Benutzername/Passwort
+- Gruppenbeitritt: bestehende Mitgliedschaften werden nicht mehr per PUT
+  überschrieben (Kommentar/Enddatum blieben sonst nicht erhalten); neuer
+  Beitritt mit `only_add`
+- Passworteingabe: Umlaute bleiben erhalten, Leerzeichen am Rand werden nicht
+  mehr abgeschnitten (Terminal, Pipe, `CT_PASSWORD`)
+- Setup über Pipe: alle Eingaben aus demselben Eingabepuffer; letzte Zeile ohne
+  Zeilenumbruch wird akzeptiert; Menüs und Hinweise gehen nach stderr
+  (`export -o -` liefert reine CSV)
+- `setup init` fragt vor dem Überschreiben und behält `campus_id`;
+  Standortauswahl speichert nur `campus_id` (keine Werte aus
+  Umgebungsvariablen in `config.json`)
+- `--campus`: Umlaute/Akzente werden umgeschrieben (ü→ue, é→e), Ziffern
+  bleiben erhalten, exakter Name hat Vorrang
+
+### Changed
+
+- Für einen Lauf beigetretene Vorab- und Rechtegruppen werden am Ende von
+  `export`/`invite` wieder verlassen (auch bei Fehlern); bestehende
+  Mitgliedschaften bleiben unverändert
+- `export` überschreibt eine vorhandene Ziel-Datei nur noch mit `--force`
+- `invite` lehnt eine CSV mit doppelter Personen-ID vor jedem Versand ab
+  (mit Zeilennummern); CSV-Dateien über 100 MiB werden abgelehnt
+- Datenschutzhinweis zum Löschen der CSV nach Export und Einladung; neuer
+  README-Abschnitt „Zugangsdaten und Datenschutz“
+- Go-Mindestversion 1.25 (sconfig); CI: `gofmt`-Prüfung, `staticcheck` v0.8.2
+  (eigener Lint-Job mit Go 1.27), Standardrechte `contents: read`, Actions per
+  Commit-SHA fixiert; `.gitattributes` erzwingt LF für Go-Dateien
+
+### Removed
+
+- Versehentlich eingecheckte Binärdateien `cmd/churchtools-invite` und
+  `churchtools-invite-test.exe` aus dem Repository (`*.exe` wird ignoriert)
+- Ungenutzter Code (`refreshSession`, `containsEmail`, `newCSVWriter`)
+
+### Dependencies
+
+- `github.com/janmz/sconfig/v3` v3.0.0 (wie in `churchtools-dup`, Ausnahme von
+  der 14-Tage-Regel dort nach Rückfrage), `golang.org/x/sys` v0.29.0 jetzt direkt
+
+### Tests
+
+- Neue Tests für zentrale HTTP-Schicht (HTTP 429, Re-Login per Passwort,
+  CSRF-Header bei Einladung/PATCH/PUT), exakte Gruppensuche, Konfigurations-
+  verschlüsselung, Dateirechte, Größenlimits, Textnormalisierung,
+  CSV-Formel-Roundtrip und doppelte Personen-IDs
+
 ## [2.6.3.52] - 2026-08-19 22:39:42
 
 ### Removed

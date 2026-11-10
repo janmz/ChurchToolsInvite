@@ -148,7 +148,9 @@ func SortGroupsByName(groups []Group) {
 	})
 }
 
-// PersonIsInGroup reports whether a person belongs to a group by name.
+// PersonIsInGroup reports whether a person belongs to a group with exactly
+// this name (case-insensitive, HTML stripped). Substrings do not count, so
+// "Admin" does not match "Admin (alt)".
 func (c *Client) PersonIsInGroup(personID int, groupName string) (bool, error) {
 	groupName = strings.TrimSpace(groupName)
 	if personID <= 0 || groupName == "" {
@@ -160,10 +162,30 @@ func (c *Client) PersonIsInGroup(personID int, groupName string) (bool, error) {
 		return false, err
 	}
 
-	want := strings.ToLower(groupName)
+	return groupsContainName(groups, groupName), nil
+}
+
+// groupsContainName reports whether groups contains one with exactly this
+// name (same comparison as matchGroupsByName).
+func groupsContainName(groups []Group, name string) bool {
+	want := groupNameKey(name)
 	for _, group := range groups {
-		plain := strings.ToLower(PlainGroupName(group.Name))
-		if plain == want || strings.Contains(plain, want) {
+		if groupNameKey(group.Name) == want {
+			return true
+		}
+	}
+	return false
+}
+
+// personInGroupID reports whether the person is a member of group groupID
+// according to the person's own group list.
+func (c *Client) personInGroupID(personID, groupID int) (bool, error) {
+	groups, err := c.ListPersonGroups(personID)
+	if err != nil {
+		return false, fmt.Errorf("gruppen der person laden: %w", err)
+	}
+	for _, group := range groups {
+		if group.ID == groupID {
 			return true, nil
 		}
 	}

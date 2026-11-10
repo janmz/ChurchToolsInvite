@@ -1,4 +1,5 @@
 # Secrets and local config
+.churchtools-invite-groups.json
 config.json
 .env
 
@@ -7,16 +8,22 @@ config.json
 *.xlsx
 !examples/*.example
 *.local.json
+# Temporary files of atomic writes (may contain person data)
+.*.tmp-*
 
 # Build output
 /churchtools-invite
-/churchtools-invite.exe
+*.exe
 rsrc_windows_*.syso
 
-# IDE / AI instructions
+# IDE / AI instructions, review and audit reports
 .cursor/
 .cursorrules
 AGENTS.md
+CLAUDE.md
+.claude/
+securityreport.md
+codereview.md
 *.code-workspace
 
 # OS

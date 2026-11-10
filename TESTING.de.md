@@ -6,7 +6,7 @@
 go test ./...
 ```
 
-Oder das lokale CI-Skript (inkl. `go vet`, Build):
+Oder das lokale CI-Skript (inkl. gofmt, `go vet`, staticcheck, Build):
 
 ```bash
 scripts/ci.ps1    # Windows
@@ -67,7 +67,7 @@ Stand: über **40** Testfunktionen in **14** Dateien (Zahl kann wachsen).
 | **`cmd/` (Cobra-Befehle)** | Dünne Schicht über `internal/*`; interaktive Menüs (`setup init`, Campus-Auswahl) brauchen TTY und manuelle Eingaben. Die Geschäftslogik wird in `internal/` getestet. |
 | **Echter ChurchTools-Server** | Keine feste Test-Instanz in CI; API-Details und Rechte variieren pro Gemeinde. Manuelle Prüfung: `churchtools-invite setup test` und `invite --dry-run`. |
 | **E-Mail-Versand / SMTP** | Einladungen löst ChurchTools serverseitig aus; das Tool ruft nur `POST /persons/{id}/invite` auf (im Mock getestet). |
-| **Interaktive Passwort-Eingabe (TTY)** | Raw-Modus und `*`‑Echo sind plattformabhängig; Pipe-Eingabe wird getestet. |
+| **Interaktive Passwort-Eingabe (TTY)** | Raw-Modus ohne Echo ist plattformabhängig; Pipe-Eingabe wird getestet. |
 | **`main` / Versionskonstanten** | Kein sinnvoller Unit-Test. |
 
 ### Manuelle Abnahme gegen eine echte Instanz

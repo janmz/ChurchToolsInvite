@@ -133,7 +133,7 @@ func TestUpdatePersonEmail(t *testing.T) {
 			{Email: "alt@example.org", IsDefault: false, ContactLabelID: 2},
 		},
 	}
-	if err := client.UpdatePersonEmail(42, plan); err != nil {
+	if _, err := client.UpdatePersonEmail(42, plan, false); err != nil {
 		t.Fatalf("UpdatePersonEmail: %v", err)
 	}
 }

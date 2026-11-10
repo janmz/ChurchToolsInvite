@@ -46,6 +46,11 @@ func TestRequestGroupMembershipUsesPublicSignupOnForbidden(t *testing.T) {
 			},
 		})
 	})
+	// The membership status is not readable (403), so the person's own
+	// group list is checked first: not yet a member.
+	mux.HandleFunc("/api/persons/7696/groups", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": []map[string]any{}})
+	})
 	mux.HandleFunc("/api/publicgroups/955/token", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method", http.StatusMethodNotAllowed)
@@ -80,9 +85,26 @@ func TestRequestGroupMembershipUsesPublicSignupOnForbidden(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Without confirmation the public signup must not be used.
+	denied, err := client.RequestGroupMembership(955, 7696)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if denied.Status != churchtools.MembershipDenied || tokenCalls != 0 {
+		t.Fatalf("unconfirmed: status = %q, tokenCalls = %d", denied.Status, tokenCalls)
+	}
+
+	asked := 0
+	client.SetPublicSignupConfirm(func(groupID, personID int) bool {
+		asked++
+		return groupID == 955 && personID == 7696
+	})
 	result, err := client.RequestGroupMembership(955, 7696)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if asked != 1 {
+		t.Fatalf("confirm called %d times, want 1", asked)
 	}
 	if result.Status != churchtools.MembershipActive {
 		t.Fatalf("status = %q message = %q", result.Status, result.Message)

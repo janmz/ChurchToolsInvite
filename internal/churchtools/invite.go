@@ -1,62 +1,38 @@
 package churchtools
 
 import (
-	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 )
 
-// InvitePerson sends the ChurchTools system invitation e-mail via REST API.
+// InvitePerson sends the ChurchTools system invitation e-mail via REST API
+// (POST /persons/{id}/invite, HTTP 204 on success).
 func (c *Client) InvitePerson(personID int) error {
-	return c.invitePerson(personID, true)
-}
-
-func (c *Client) invitePerson(personID int, allowRelogin bool) error {
 	path := "/persons/" + strconv.Itoa(personID) + "/invite"
-	req, err := http.NewRequest(http.MethodPost, c.apiURL(path), nil)
+	status, body, err := c.callAPI(http.MethodPost, path, nil, nil)
 	if err != nil {
 		return err
 	}
-	c.applyAuth(req)
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return fmt.Errorf("einladung senden: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode == http.StatusUnauthorized {
-		if err := c.reloginOnce(allowRelogin); err != nil {
-			return err
-		}
-		return c.invitePerson(personID, false)
-	}
-	if resp.StatusCode == http.StatusNoContent {
+	if status == http.StatusNoContent || status == http.StatusOK {
 		return nil
 	}
-
-	msg := inviteErrorMessage(resp.StatusCode, body)
-	return &APIError{
-		StatusCode: resp.StatusCode,
-		Message:    msg,
-		Body:       string(body),
-	}
+	return newAPIError(status, inviteErrorMessage(status, body), body)
 }
 
 func inviteErrorMessage(status int, body []byte) string {
 	switch status {
 	case http.StatusBadRequest:
-		return "person hat keine e-mail-adresse in ChurchTools"
-	case http.StatusForbidden:
-		return "keine berechtigung zum einladen (global invite person oder gruppe +invite persons)"
-	case http.StatusNotFound:
-		return "person nicht gefunden"
-	default:
-		if len(body) > 0 {
-			return string(body)
+		// ChurchTools also answers 400 for other reasons (e.g. already a
+		// user); its own text is appended by APIError.Error.
+		if apiBodyMessage(body, "") != "" {
+			return "Einladung abgelehnt"
 		}
-		return "einladung fehlgeschlagen"
+		return "Person hat keine E-Mail-Adresse in ChurchTools"
+	case http.StatusForbidden:
+		return "keine Berechtigung zum Einladen (global invite person oder Gruppe +invite persons)"
+	case http.StatusNotFound:
+		return "Person nicht gefunden"
+	default:
+		return apiBodyMessage(body, "Einladung fehlgeschlagen")
 	}
 }

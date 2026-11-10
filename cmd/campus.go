@@ -1,36 +1,17 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
 
 	churchtools "github.com/janmz/churchtools-invite/internal/churchtools"
 	config "github.com/janmz/churchtools-invite/internal/config"
 )
 
-func applyDefaultCampus(client *churchtools.Client, cfg *config.Config, opts *churchtools.PersonListOptions) error {
-	if opts.CampusID > 0 {
-		return nil
-	}
-
-	campusID, err := ensureCampusID(client, cfg)
-	if err != nil {
-		return err
-	}
-	if campusID <= 0 {
-		return nil
-	}
-
-	opts.CampusID = campusID
-	name := campusDisplayName(client, campusID)
-	if name != "" {
-		fmt.Fprintf(os.Stderr, "Standort automatisch: %s (ID %d)\n", name, campusID)
-	} else {
-		fmt.Fprintf(os.Stderr, "Standort automatisch: ID %d\n", campusID)
-	}
-	return nil
-}
-
+// ensureCampusID returns the campus of the logged-in user, the configured
+// campus_id or – after asking – a chosen campus that is stored as campus_id.
 func ensureCampusID(client *churchtools.Client, cfg *config.Config) (int, error) {
 	campusID, err := client.CurrentUserCampusID()
 	if err != nil {
@@ -47,6 +28,10 @@ func ensureCampusID(client *churchtools.Client, cfg *config.Config) (int, error)
 	if err != nil {
 		return 0, err
 	}
+	if len(campuses) == 0 {
+		// Instance without campuses: no filter is needed.
+		return 0, nil
+	}
 
 	campusItems := make([]menuItem, len(campuses))
 	for i, campus := range campuses {
@@ -56,8 +41,10 @@ func ensureCampusID(client *churchtools.Client, cfg *config.Config) (int, error)
 	selectedID, err := promptMenu(
 		"Kein Standort am Benutzer hinterlegt – bitte Standort auswählen (wird in config gespeichert)",
 		campusItems,
-		false,
 	)
+	if errors.Is(err, io.EOF) {
+		return 0, fmt.Errorf("kein Standort am Benutzer hinterlegt und keine Eingabe möglich – Standort mit --campus ID|Name|all angeben")
+	}
 	if err != nil {
 		return 0, err
 	}
@@ -67,12 +54,13 @@ func ensureCampusID(client *churchtools.Client, cfg *config.Config) (int, error)
 	if path == "" {
 		path = config.DefaultConfigName
 	}
-	if err := config.Save(path, *cfg); err != nil {
+	// Only campus_id is written; credentials from the environment stay out
+	// of the file.
+	if err := config.SaveCampusID(path, selectedID); err != nil {
 		return 0, err
 	}
 
-	name := campusName(campuses, selectedID)
-	fmt.Fprintf(os.Stderr, "Standort %q (ID %d) in %s gespeichert.\n", name, selectedID, path)
+	fmt.Fprintf(os.Stderr, "Standort %s in %s gespeichert.\n", formatCampus(campusName(campuses, selectedID), selectedID), path)
 	return selectedID, nil
 }
 

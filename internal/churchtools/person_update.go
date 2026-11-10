@@ -1,18 +1,24 @@
 package churchtools
 
 import (
-	"bytes"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 )
 
+// ErrSingleEmailOnly is returned when the instance rejects the "emails" list
+// and the single-address fallback was not allowed.
+var ErrSingleEmailOnly = errors.New("ChurchTools lehnt die Adressliste ab; nur mit --allow-single-email wird die primäre Adresse ersetzt (die bisherige geht dabei verloren)")
+
 // UpdatePersonEmail applies an e-mail sync plan via PATCH /persons/{id}.
-func (c *Client) UpdatePersonEmail(personID int, plan EmailSyncPlan) error {
+// When the instance rejects the "emails" list as invalid (HTTP 400/422) and
+// allowSingle is set, only the single "email" field is sent; that replaces
+// the previous primary address, which legacy reports as true. Without
+// allowSingle ErrSingleEmailOnly is returned and nothing is replaced.
+func (c *Client) UpdatePersonEmail(personID int, plan EmailSyncPlan, allowSingle bool) (legacy bool, err error) {
 	if !plan.Needed {
-		return nil
+		return false, nil
 	}
 
 	payload := map[string]any{
@@ -33,55 +39,35 @@ func (c *Client) UpdatePersonEmail(personID int, plan EmailSyncPlan) error {
 		payload["emails"] = emails
 	}
 
-	if err := c.patchPerson(personID, payload, true); err == nil {
-		return nil
-	} else if len(plan.Emails) <= 1 {
-		return err
+	err = c.patchPerson(personID, payload)
+	if err == nil {
+		return false, nil
+	}
+	if len(plan.Emails) <= 1 || !isInvalidRequest(err) {
+		return false, err
+	}
+	if !allowSingle {
+		return false, fmt.Errorf("%w: %v", ErrSingleEmailOnly, err)
 	}
 
 	// Fallback for instances that only accept the legacy single email field.
-	if err := c.patchPerson(personID, map[string]any{"email": plan.Primary}, true); err != nil {
-		return fmt.Errorf(
+	if err := c.patchPerson(personID, map[string]any{"email": plan.Primary}); err != nil {
+		return false, fmt.Errorf(
 			"e-mail aktualisieren fehlgeschlagen (mehrfach-adressen nicht unterstützt?): %w",
 			err,
 		)
 	}
-	return nil
+	return true, nil
 }
 
-func (c *Client) patchPerson(personID int, payload map[string]any, allowRelogin bool) error {
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-
+func (c *Client) patchPerson(personID int, payload map[string]any) error {
 	path := "/persons/" + strconv.Itoa(personID)
-	req, err := http.NewRequest(http.MethodPatch, c.apiURL(path), bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	c.applyAuth(req)
-
-	resp, err := c.http.Do(req)
+	status, body, err := c.callAPI(http.MethodPatch, path, nil, payload)
 	if err != nil {
 		return fmt.Errorf("person aktualisieren: %w", err)
 	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode == http.StatusUnauthorized {
-		if err := c.reloginOnce(allowRelogin); err != nil {
-			return err
-		}
-		return c.patchPerson(personID, payload, false)
-	}
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		return &APIError{
-			StatusCode: resp.StatusCode,
-			Message:    "person konnte nicht aktualisiert werden (Berechtigung Personen bearbeiten?)",
-			Body:       string(respBody),
-		}
+	if status != http.StatusOK && status != http.StatusNoContent {
+		return newAPIError(status, "Person konnte nicht aktualisiert werden (Berechtigung Personen bearbeiten?)", body)
 	}
 	return nil
 }

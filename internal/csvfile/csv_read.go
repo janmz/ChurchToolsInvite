@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/csv"
 	"errors"
-	"io"
 )
 
 const writeDelimiter = ','
@@ -71,10 +70,4 @@ func newCSVReader(data []byte) (*csv.Reader, error) {
 	reader.TrimLeadingSpace = true
 	reader.FieldsPerRecord = -1
 	return reader, nil
-}
-
-func newCSVWriter(w io.Writer) *csv.Writer {
-	writer := csv.NewWriter(w)
-	writer.Comma = writeDelimiter
-	return writer
 }

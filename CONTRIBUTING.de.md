@@ -4,10 +4,11 @@ Danke, dass du Masseneinladung verbesserst.
 
 ## Einrichtung
 
-1. Go 1.22 oder neuer installieren.
+1. Go 1.26 oder neuer installieren.
 2. Repository klonen.
 3. `go mod download` ausführen.
 4. Für lokale Tests `config.example.json` nach `config.json` kopieren (nicht committen).
+5. Pre-Commit-Hook aktivieren: `git config core.hooksPath .githooks` (führt `scripts/ci.sh` aus, prüft die EN/DE-Dokupaare und blockiert CSV, `config.json` und Prüfberichte).
 
 ## Prüfungen vor dem Einreichen
 

@@ -21,6 +21,8 @@ func Execute(versionString string) error {
 	rootCmd.Version = versionString
 	rootCmd.InitDefaultHelpCmd()
 	applyGermanFlagLabels(rootCmd)
+	stop := installInterruptHandler()
+	defer stop()
 	return finalizeCLIError(rootCmd.Execute())
 }
 

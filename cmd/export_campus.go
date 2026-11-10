@@ -1,12 +1,11 @@
 package cmd
 
 import (
-	"fmt"
-	"strconv"
 	"strings"
 
 	churchtools "github.com/janmz/churchtools-invite/internal/churchtools"
 	config "github.com/janmz/churchtools-invite/internal/config"
+	"github.com/janmz/churchtools-invite/internal/textnorm"
 )
 
 const campusMenuAll = -1
@@ -23,13 +22,6 @@ func parseExportCampusFlag(client *churchtools.Client, value string) (exportCamp
 		return exportCampusChoice{all: true}, nil
 	}
 
-	if id, err := strconv.Atoi(value); err == nil {
-		if id <= 0 {
-			return exportCampusChoice{}, fmt.Errorf("--campus muss positiv sein")
-		}
-		return exportCampusChoice{campusID: id}, nil
-	}
-
 	campuses, err := client.ListCampuses()
 	if err != nil {
 		return exportCampusChoice{}, err
@@ -41,43 +33,17 @@ func parseExportCampusFlag(client *churchtools.Client, value string) (exportCamp
 	return exportCampusChoice{campusID: id}, nil
 }
 
+// normalizeCampusSearch folds a campus name or search term: umlauts and
+// accents are transliterated (ü → ue, é → e), letters and digits are kept,
+// spaces, hyphens and punctuation are ignored.
 func normalizeCampusSearch(value string) string {
-	value = strings.ToLower(strings.TrimSpace(value))
-	var b strings.Builder
-	for _, r := range value {
-		if r >= 'a' && r <= 'z' {
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
+	return textnorm.FoldAlnum(value)
 }
 
+// matchCampusBySearch resolves a campus ID or name (exact name first, then a
+// unique substring); errors list the valid campuses.
 func matchCampusBySearch(campuses []churchtools.Campus, search string) (int, error) {
-	needle := normalizeCampusSearch(search)
-	if needle == "" {
-		return 0, fmt.Errorf("--campus: leerer Suchstring")
-	}
-
-	var matches []churchtools.Campus
-	for _, campus := range campuses {
-		name := strings.ToLower(campus.Name)
-		if strings.Contains(name, needle) {
-			matches = append(matches, campus)
-		}
-	}
-
-	switch len(matches) {
-	case 0:
-		return 0, fmt.Errorf("--campus: kein Standort für %q gefunden", search)
-	case 1:
-		return matches[0].ID, nil
-	default:
-		names := make([]string, len(matches))
-		for i, campus := range matches {
-			names[i] = campus.Name
-		}
-		return 0, fmt.Errorf("--campus: mehrdeutig %q (%s)", search, strings.Join(names, ", "))
-	}
+	return resolveNamedItem(campusKind, campusesToItems(campuses), search)
 }
 
 func promptExportCampus(client *churchtools.Client) (exportCampusChoice, error) {
@@ -92,7 +58,7 @@ func promptExportCampus(client *churchtools.Client) (exportCampusChoice, error) 
 		items = append(items, menuItem{id: campus.ID, name: campus.Name})
 	}
 
-	selectedID, err := promptMenu("Standort für Export", items, false)
+	selectedID, err := promptMenu("Standort für Export", items)
 	if err != nil {
 		return exportCampusChoice{}, err
 	}

@@ -1,6 +1,6 @@
 # ChurchTools_Invite
 
-[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://golang.org)
+[![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go)](https://golang.org)
 [![Release](https://img.shields.io/badge/Release-GitHub-0077B6)](https://github.com/janmz/ChurchToolsInvite/releases)
 [![Lizenz: MIT (modifiziert)](https://img.shields.io/badge/Lizenz-MIT--Modified-blue.svg)](LICENSE)
 [![Unterstützung: CFI-Kinderhilfe](https://img.shields.io/badge/Unterstützung-CFI--Kinderhilfe-0077B6?logo=heart)](https://cfi-kinderhilfe.de/jetzt-spenden?q=VAYACTINVITE)
@@ -44,7 +44,7 @@ Dies soll den Prozess unterstützen, den jede Gemeinde durchmacht, wenn sie neu 
 
 ## Voraussetzungen
 
-- Go 1.22+ (zum Bauen aus dem Quellcode)
+- Go 1.26+ (zum Bauen aus dem Quellcode)
 - ChurchTools-Konto mit Berechtigung **Personen zur Nutzung von ChurchTools
   einladen**
 - Für Export: Berechtigung **export data** (Gruppe „Personen exportieren“)
@@ -110,10 +110,11 @@ Kopiere `config.example.json` nach `config.json` oder nutze Umgebungsvariablen:
 
 | Variable | Beschreibung |
 | --- | --- |
-| `CT_BASE_URL` | Instanzname (z. B. `emk-rheinmain`) oder volle URL |
+| `CT_BASE_URL` | Instanzname (z. B. `meine-gemeinde`) oder volle URL (nur `https://`; `http://` nur für localhost) |
+| `main_url` / `CT_MAIN_URL` | Haupt-(Zentral-)Instanz für die Anmeldung an einer Nebeninstanz; wird nur genutzt, wenn ausdrücklich gesetzt |
 | `CT_LOGIN_TOKEN` | API-Login-Token |
 | `CT_USERNAME` / `CT_PASSWORD` | Alternative zum Token |
-| `delay_ms` | Pause zwischen Einladungen in Millisekunden (Standard: 500) |
+| `delay_ms` | Pause nach jeder Einladung oder E-Mail-Änderung in Millisekunden, 0–60000 (Standard: 500; übersprungene Zeilen lösen keine Pause aus) |
 | `campus_id` | Standard-Standort, wenn der Benutzer keinen hat (wird bei Bedarf interaktiv gesetzt) |
 | `pre_join_groups` | Kommagetrennte Gruppen, denen vor Export/Invite in dieser Reihenfolge beigetreten wird (Standard siehe `config.example.json`; `-` zum Deaktivieren) |
 | `CT_PRE_JOIN_GROUPS` | Umgebungsvariable für `pre_join_groups` |
@@ -130,13 +131,19 @@ Login-Token beschaffen:
 
 Bei ChurchTools-Mandanten mit mehreren Standorten kann die URL einer
 Nebeninstanz so aussehen: `https://haupt-neben.church.tools` (Beispiel:
-`https://emk-rheinmain.church.tools`). Benutzerkonten liegen auf der
+`https://meine-gemeinde-unterstadt.church.tools`). Benutzerkonten liegen auf der
 **Zentralinstanz** `https://haupt.church.tools` (Beispiel:
-`https://emk.church.tools`).
+`https://meine-gemeinde.church.tools`).
 
-Schlägt die direkte Anmeldung auf der Nebeninstanz fehl, baut das Tool bei
-**Benutzername/Passwort** den OAuth-Flow nach (klappt der Direktlogin, entfällt
-dieser Schritt):
+Die Zentralinstanz wird **nur** verwendet, wenn sie als `main_url` (bzw.
+`CT_MAIN_URL`) eingetragen ist. `setup init` schlägt sie bei Namen wie
+`gemeinde-standort` vor und übernimmt sie nur nach Bestätigung – ein aus dem
+Namen abgeleiteter Host könnte zu einer anderen Gemeinde gehören, daher gehen
+Zugangsdaten nie an einen geratenen Host.
+
+Schlägt die direkte Anmeldung auf der Nebeninstanz fehl und ist `main_url`
+gesetzt, baut das Tool bei **Benutzername/Passwort** den OAuth-Flow nach
+(klappt der Direktlogin, entfällt dieser Schritt):
 
 1. Login auf der Zentralinstanz (`/api/login`)
 2. `oauthclients/…/startlogin` auf der Nebeninstanz (Redirect zur Zentralinstanz)
@@ -147,8 +154,9 @@ dieser Schritt):
 `setup init` kann danach automatisch ein Login-Token der Nebeninstanz holen
 (`/api/person/me/apitoken`).
 
-Bei **Login-Token**, der nur auf der Zentralinstanz gültig ist, wird als Fallback
-weiterhin die Zentralinstanz für API-Aufrufe verwendet (Hinweis in der Ausgabe).
+Bei **Login-Token**, der nur auf der Zentralinstanz gültig ist (und gesetztem
+`main_url`), wird als Fallback die Zentralinstanz für API-Aufrufe verwendet
+(Hinweis in der Ausgabe).
 
 Berechtigungen prüfen:
 
@@ -220,8 +228,10 @@ id,vorname,nachname,email
 ### Dry-run – Vor dem Versand prüfen
 
 `invite --dry-run` durchläuft dieselbe Prüflogik wie ein echter Lauf, **ohne**
-Einladungen zu senden und **ohne** Daten in ChurchTools zu ändern (kein
-E-Mail-Sync). Pro CSV-Zeile wird geprüft:
+Einladungen zu senden und **ohne** Personen zu ändern (kein E-Mail-Sync).
+Vorab- und Rechtegruppen werden trotzdem beigetreten, weil das Lesen der
+Personen diese Rechte braucht; wie im echten Lauf werden sie am Ende wieder
+verlassen, wenn man vorher nicht Mitglied war. Pro CSV-Zeile wird geprüft:
 
 - Existiert die Person-ID in ChurchTools?
 - Ist die Person bereits eingeladen? Erkennung u. a. über `invitationStatus`
@@ -229,12 +239,17 @@ E-Mail-Sync). Pro CSV-Zeile wird geprüft:
   CSV mit ChurchTools übereinstimmt; bei abweichender E-Mail werden Update und
   erneute Einladung simuliert. **Registrierte** werden immer übersprungen;
   `--reinvite` gilt nur für **Eingeladene**
-- Liegt eine Einladungs-E-Mail vor (CSV und/oder ChurchTools)?
+- Liegt eine Einladungs-E-Mail vor? ChurchTools lädt immer an die
+  ChurchTools-Adresse der Person ein; mit `--no-sync-email` schlägt eine Person
+  ohne Adresse fehl.
 - Wäre ein E-Mail-Abgleich aus der CSV erforderlich?
 
-Ausgabe: Zeilenweises Protokoll mit `OK`, `ÜBERSPRUNGEN` oder `FEHLER` plus
-Zusammenfassung. Bei mindestens einem Fehler endet das Programm mit Exit-Code
-1.
+Ausgabe: Jede Zeile erscheint sofort nach der Verarbeitung (`OK`,
+`ÜBERSPRUNGEN` oder `FEHLER`), danach eine Zusammenfassung, die die
+fehlgeschlagenen Zeilen wiederholt. Bei mindestens einem Fehler endet das
+Programm mit Exit-Code 1. **Strg+C** bricht nach der aktuellen Zeile ab, gibt
+die Zusammenfassung aus und verlässt die temporären Gruppen; ein zweites
+Strg+C beendet sofort.
 
 Empfohlen vor dem ersten echten Versand. Alle Optionen von `invite`
 (`--reinvite`, `--no-sync-email`, …) gelten auch im Dry-Run.
@@ -243,28 +258,35 @@ Empfohlen vor dem ersten echten Versand. Alle Optionen von `invite`
 
 | Befehl | Zweck |
 | --- | --- |
-| `setup init` | Interaktive `config.json` anlegen (Instanzname, Passwort mit `*`-Eingabe) |
+| `setup init` | Interaktive `config.json` anlegen (Instanzname, optionale Hauptinstanz, verdeckte Passwort-/Token-Eingabe) |
 | `setup test` | Login und Verbindung testen |
-| `setup token` | Login-Token anzeigen |
+| `setup token` | Eigenen Login-Token abrufen und verschlüsselt in `config.json` speichern (wird nie ausgegeben) |
 | `setup permissions` | Einladungs-Berechtigungen prüfen |
 | `whoami` | Angemeldeten Benutzer, Standort, Gruppenmitgliedschaften (sortiert nach Name, Format `Name  ID`) und Instanz-URL anzeigen |
-| `export -o DATEI` | Personenliste als Einladungs-CSV exportieren, Default `personen.csv` (`-` = stdout); standardmäßig nur noch nicht Eingeladene |
+| `export -o DATEI` | Personenliste als Einladungs-CSV exportieren, Default `personen.csv` (`-` = stdout, Hinweise auf stderr); standardmäßig nur noch nicht Eingeladene |
+| `export --force` | Vorhandene Ziel-Datei überschreiben (sonst bricht der Export ab) |
 | `export -i` / `--invited` | Alle Einladungsstatus exportieren (NEU, Eingeladen, Registriert) |
 | `export --interactive` | Standort, optional Filter (Personenstatus, Gruppe) und Einladungsstatus wählen (`[n]` Neu, `[e]` Eingeladen, `[r]` Registriert) |
 | `export --campus WERT` | Standort per ID oder eindeutigem Namens-Teilstring (siehe CSV-Format); nur nötig bei abweichendem Standort oder fehlendem Nutzer-Standort |
 | `export --campus all` | Alle Standorte (Alias zu `--all-campuses`) |
 | `export --all-campuses` | Keinen Standort-Filter |
-| `export --status-id ID` | Nur Personen mit diesem ChurchTools-Personenstatus (Mitglied, Gast, …) |
-| `export --group-id ID` | Nur Gruppenmitglieder |
+| `export --status WERT` | Nur Personen mit diesem Personenstatus (Mitglied, Gast, …) – ID oder Name, z. B. `--status Mitglied`; der alte Name `--status-id` funktioniert weiter. Nicht der Einladungsstatus der CSV-Spalte `status` |
+| `export --group WERT` | Nur Mitglieder dieser Gruppe – ID oder Name (eindeutiger Teil genügt); der alte Name `--group-id` funktioniert weiter |
+| `list statuses` | Personenstatus der eigenen Instanz mit ID und Name (jede Gemeinde legt eigene an, die IDs unterscheiden sich je Instanz) |
+| `list groups [--campus X] [--search TEXT]` | Gruppen mit ID und Name |
+| `list campuses` | Standorte mit ID und Name |
 | `export --skip-permission-request` | Keine Gruppenanfrage bei fehlenden Export-Rechten |
 | `export --skip-pre-join-groups` | Keine Vorab-Gruppen vor dem Export beitreten |
 | `invite -f DATEI` | Einladungen senden |
 | `invite -f DATEI --dry-run` | Prüfen/simulieren ohne Versand (siehe oben) |
-| `invite -f DATEI --delay-ms MS` | Pause zwischen Einladungen (0 = `delay_ms` aus config) |
+| `invite -f DATEI --delay-ms MS` | Pause nach jeder Einladung/E-Mail-Änderung, 0–60000 (0 = `delay_ms` aus config) |
 | `invite -f DATEI --no-sync-email` | E-Mail-Sync aus CSV deaktivieren (abweichende E-Mail → Fehler) |
 | `invite -f DATEI --reinvite` | Personen mit Status **Eingeladen** erneut einladen; **Registriert** wird immer übersprungen |
 | `invite -f DATEI --skip-permission-request` | Keine Gruppenanfrage bei fehlenden Rechten |
 | `invite -f DATEI --skip-pre-join-groups` | Keine Vorab-Gruppen vor dem Invite beitreten |
+| `invite -f DATEI --yes` / `-y` | Plan ohne Rückfrage ausführen (Skripte); nicht erlaubt, wenn die API über die Hauptinstanz läuft |
+| `invite -f DATEI --ignore-name-mismatch` | Zeilen auch verarbeiten, wenn der Name in der CSV nicht zur Person in ChurchTools passt |
+| `invite -f DATEI --allow-single-email` | Lehnt ChurchTools die Adressliste ab: primäre E-Mail ersetzen (bisherige Adresse geht verloren) |
 
 ## Entwicklung
 
@@ -279,10 +301,64 @@ Standard für reine CLI-Binaries). Unter Windows wird bei Releases
 Instanz: [TESTING.de.md](TESTING.de.md).
 
 ```bash
+scripts/ci.sh      # bzw. scripts/ci.ps1: gofmt, go vet, staticcheck, Tests, Build
 go test ./...
-go vet ./...
 go build -o churchtools-invite.exe .
 ```
+
+`staticcheck` (v0.8.2) benötigt Go 1.26 oder neuer; bei älteren Toolchains
+`SKIP_STATICCHECK=1` setzen.
+
+## Zugangsdaten und Datenschutz
+
+- **Verschlüsselte Geheimnisse:** `login_token` und `password` in
+  `config.json` werden beim ersten Start mit
+  [sconfig](https://github.com/janmz/sconfig) verschlüsselt
+  (`login_token_secure`, `secure_password`; im Klartextfeld steht danach ein
+  Hinweistext). Die Verschlüsselung ist an diesen Rechner gebunden – auf
+  einem anderen PC die Zugangsdaten neu eintragen. Zum Ändern den neuen Wert
+  im Klartext in `login_token` bzw. `password` schreiben.
+- `config.json` muss unterhalb des Programmverzeichnisses, des aktuellen
+  Arbeitsverzeichnisses oder des Benutzerverzeichnisses liegen (sconfig-Regel).
+- `config.json` und exportierte CSV-Dateien sind nur für den aktuellen
+  Benutzer lesbar (Windows-ACL, sonst `0600`). Umgebungsvariablen (`CT_*`)
+  werden nie in die Datei geschrieben.
+- **Kein Ausweichen auf geratene Hosts:** Zugangsdaten gehen nur an
+  `base_url` und, falls gesetzt, `main_url`. Weiterleitungen auf einen
+  anderen Host oder ein anderes Schema werden abgelehnt, auch in der
+  OAuth-Brücke (nur Haupt- und Nebeninstanz, https). `setup init` schlägt
+  die Hauptinstanz vor, die die Nebeninstanz selbst meldet; ein aus dem
+  Namen abgeleiteter Host muss eingetippt werden. Ein Token-Fallback auf die
+  Hauptinstanz erfolgt nur bei HTTP 401; `invite` warnt dann und verlangt
+  eine interaktive Bestätigung.
+- **Temporäre Gruppen:** Gruppen aus `pre_join_groups` und Rechtegruppen,
+  denen das Tool für einen Lauf beitritt, werden am Ende von `export` bzw.
+  `invite` wieder verlassen; bestehende Mitgliedschaften bleiben unverändert.
+  Beigetretene Gruppen werden in `.churchtools-invite-groups.json` neben der
+  `config.json` vermerkt; endet ein Lauf ohne Austritt (Absturz, Fenster
+  geschlossen, zweites Strg+C), bietet der nächste Start das Verlassen an.
+  Eine Anmeldung über das öffentliche Gruppenformular erfolgt nur nach
+  Rückfrage.
+- `setup token` speichert nur den **eigenen** Token, verschlüsselt; er wird
+  nie ausgegeben.
+- Die CSV enthält personenbezogene Daten: nach den Einladungen löschen (das
+  Tool erinnert daran). Zellen, die mit `= + - @` beginnen, erhalten ein
+  vorangestelltes `'` gegen Formel-Injection; `invite` entfernt es wieder.
+  Steht eine Personen-ID doppelt in der CSV oder ist eine E-Mail-Adresse
+  ungültig (genau eine einfache Adresse je Zelle), bricht `invite` vor jedem
+  Versand ab. CSV-Dateien werden beim Lesen auf den aktuellen Benutzer
+  beschränkt.
+- **Plan und Bestätigung:** Vor einem echten `invite`-Lauf wird die CSV wie
+  im Dry-Run geprüft; der Plan nennt die Zahl der Einladungen und jede
+  E-Mail-Änderung (alt → neu) und fragt `[j/N]` (`--yes` für Skripte).
+  Zeilen, deren Name in der CSV nicht zur Person in ChurchTools passt
+  (verrutschte Zeile, falsche ID), schlagen fehl, außer mit
+  `--ignore-name-mismatch` – sonst ginge die Kontoaktivierung an jemand
+  anderen.
+- Ergebniszeilen eines echten Laufs zeigen E-Mail-Adressen maskiert
+  (`ma***@example.org`); vollständige Adressen nur im Dry-Run und im Plan.
+  Text vom Server oder aus der CSV wird ohne Steuerzeichen ausgegeben.
+- Release-Archive enthalten eine `SHA256SUMS`-Datei (`sha256sum -c SHA256SUMS`).
 
 ## Contributing
 

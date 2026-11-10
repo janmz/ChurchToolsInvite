@@ -15,9 +15,11 @@ type PreJoinGroupResult struct {
 }
 
 // EnsurePreJoinGroups joins the authenticated person to each group in order when
-// not already a member. Groups that are not visible yet are retried after a
-// successful join and session refresh so earlier list entries do not block
-// later groups (e.g. Gruppen Administration before ChurchTools Admin).
+// not already a member. Groups that are not visible yet are retried in a
+// further pass after a successful join (the new membership may grant the
+// right to see them), so earlier list entries do not block later groups
+// (e.g. Gruppen Administration before ChurchTools Admin). The person's
+// groups are loaded once per pass.
 func (c *Client) EnsurePreJoinGroups(groupNames []string) ([]PreJoinGroupResult, error) {
 	personID := c.PersonID()
 	if personID <= 0 {
@@ -47,20 +49,19 @@ func (c *Client) EnsurePreJoinGroups(groupNames []string) ([]PreJoinGroupResult,
 		var nextPending []string
 		passProgress := false
 
-		for _, name := range pending {
+		memberGroups, err := c.ListPersonGroups(personID)
+		if err != nil {
+			return orderedPreJoinResults(names, completed), fmt.Errorf("Gruppen der Person laden: %w", err)
+		}
 
-			inGroup, err := c.PersonIsInGroup(personID, name)
-			if err != nil {
-				return orderedPreJoinResults(names, completed), fmt.Errorf("Gruppe %q prüfen: %w", name, err)
-			}
-			if inGroup {
+		for _, name := range pending {
+			if groupsContainName(memberGroups, name) {
 				completed[name] = PreJoinGroupResult{
 					GroupName: name,
 					Status:    MembershipActive,
 					Message:   "Bereits Mitglied",
 					Skipped:   true,
 				}
-				passProgress = true
 				continue
 			}
 
@@ -82,12 +83,18 @@ func (c *Client) EnsurePreJoinGroups(groupNames []string) ([]PreJoinGroupResult,
 				GroupName: name,
 				Status:    membership.Status,
 				Message:   membership.Message,
+				Skipped:   membership.AlreadyMember,
 			}
 			completed[name] = result
 			if membership.Status == MembershipDenied {
 				nextPending = append(nextPending, name)
 			}
-			passProgress = true
+			// Only a newly active membership can grant rights that make other
+			// groups visible or joinable; denials and pending requests do not,
+			// so they must not trigger another pass.
+			if membership.Status == MembershipActive && !membership.AlreadyMember {
+				passProgress = true
+			}
 		}
 
 		pending = nextPending
@@ -120,11 +127,4 @@ func orderedPreJoinResults(names []string, completed map[string]PreJoinGroupResu
 		results = append(results, PreJoinGroupResult{GroupName: name})
 	}
 	return results
-}
-
-func (c *Client) refreshSession() error {
-	if strings.TrimSpace(c.loginToken) != "" {
-		return c.relogin()
-	}
-	return c.Login()
 }

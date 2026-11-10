@@ -6,55 +6,87 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/janmz/churchtools-invite/internal/termio"
+	"github.com/janmz/churchtools-invite/internal/textnorm"
 )
+
+// stdinReader is the single buffered reader for all interactive input, so
+// lines buffered by one prompt are not lost for the next (piped input).
+var stdinReader = bufio.NewReader(os.Stdin)
+
+// readLine prints prompt to stderr and returns the next stdin line without
+// the line break. A last line without line break is accepted. Ctrl+C ends
+// the wait with errInterrupted; after that no further input is read.
+func readLine(prompt string) (string, error) {
+	if err := interrupted(); err != nil {
+		return "", err
+	}
+	fmt.Fprint(os.Stderr, prompt)
+
+	type lineResult struct {
+		line string
+		err  error
+	}
+	ch := make(chan lineResult, 1)
+	go func() {
+		line, err := termio.ReadLine(stdinReader, termio.MaxLineBytes)
+		ch <- lineResult{line, err}
+	}()
+	select {
+	case res := <-ch:
+		return res.line, res.err
+	case <-runCtx.Done():
+		return "", errInterrupted
+	}
+}
 
 type menuItem struct {
 	id   int
 	name string
 }
 
-func promptMenu(title string, items []menuItem, allowSkip bool) (int, error) {
+// promptMenu shows a numbered menu on stderr (stdout may carry CSV data) and
+// returns the chosen item's id.
+func promptMenu(title string, items []menuItem) (int, error) {
 	if len(items) == 0 {
-		return 0, fmt.Errorf("keine einträge für %s", title)
+		return 0, fmt.Errorf("keine Einträge für %s", title)
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Printf("\n%s:\n", title)
+	fmt.Fprintf(os.Stderr, "\n%s:\n", title)
 	for i, item := range items {
-		fmt.Printf("  [%d] %s (ID %d)\n", i+1, item.name, item.id)
+		name := textnorm.Printable(item.name)
+		if item.id > 0 {
+			fmt.Fprintf(os.Stderr, "  [%d] %s (ID %d)\n", i+1, name, item.id)
+		} else {
+			// Pseudo entries such as "Alle Standorte" have no real ID.
+			fmt.Fprintf(os.Stderr, "  [%d] %s\n", i+1, name)
+		}
 	}
-	if allowSkip {
-		fmt.Println("  [0] Kein zusätzlicher Filter")
-	}
-	fmt.Print("Auswahl: ")
 
-	line, err := reader.ReadString('\n')
+	line, err := readLine("Auswahl: ")
 	if err != nil {
 		return 0, err
 	}
 
 	choice, err := strconv.Atoi(strings.TrimSpace(line))
 	if err != nil {
-		return 0, fmt.Errorf("ungültige auswahl")
+		return 0, fmt.Errorf("ungültige Auswahl")
 	}
-	if allowSkip && choice == 0 {
-		return 0, nil
-	}
+
 	if choice < 1 || choice > len(items) {
-		return 0, fmt.Errorf("auswahl außerhalb des gültigen bereichs")
+		return 0, fmt.Errorf("Auswahl außerhalb des gültigen Bereichs")
 	}
 	return items[choice-1].id, nil
 }
 
 func promptExportInviteStatus() (exportInviteFilter, error) {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("\nEinladungsstatus:")
-	fmt.Println("  [n] Neu (noch nicht eingeladen)")
-	fmt.Println("  [e] Eingeladen")
-	fmt.Println("  [r] Registriert")
-	fmt.Print("Auswahl [n/e/r]: ")
+	fmt.Fprintln(os.Stderr, "\nEinladungsstatus:")
+	fmt.Fprintln(os.Stderr, "  [n] Neu (noch nicht eingeladen)")
+	fmt.Fprintln(os.Stderr, "  [e] Eingeladen")
+	fmt.Fprintln(os.Stderr, "  [r] Registriert")
 
-	line, err := reader.ReadString('\n')
+	line, err := readLine("Auswahl [n/e/r]: ")
 	if err != nil {
 		return exportInviteFilterNEU, err
 	}
@@ -67,19 +99,17 @@ func promptExportInviteStatus() (exportInviteFilter, error) {
 	case "r", "registriert":
 		return exportInviteFilterRegistriert, nil
 	default:
-		return exportInviteFilterNEU, fmt.Errorf("ungültige einladungsstatus-auswahl")
+		return exportInviteFilterNEU, fmt.Errorf("ungültige Auswahl für den Einladungsstatus")
 	}
 }
 
 func promptFilterMode() (string, error) {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("\nZusätzlicher Filter:")
-	fmt.Println("  [a] Alle Personen am Standort")
-	fmt.Println("  [s] Nach Personenstatus filtern")
-	fmt.Println("  [g] Nach Gruppe filtern")
-	fmt.Print("Auswahl [a/s/g]: ")
+	fmt.Fprintln(os.Stderr, "\nZusätzlicher Filter:")
+	fmt.Fprintln(os.Stderr, "  [a] Alle Personen am Standort")
+	fmt.Fprintln(os.Stderr, "  [s] Nach Personenstatus filtern")
+	fmt.Fprintln(os.Stderr, "  [g] Nach Gruppe filtern")
 
-	line, err := reader.ReadString('\n')
+	line, err := readLine("Auswahl [a/s/g]: ")
 	if err != nil {
 		return "", err
 	}
@@ -92,6 +122,6 @@ func promptFilterMode() (string, error) {
 	case "g", "gruppe", "group":
 		return "group", nil
 	default:
-		return "", fmt.Errorf("ungültige filterauswahl")
+		return "", fmt.Errorf("ungültige Filterauswahl")
 	}
 }

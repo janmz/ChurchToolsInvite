@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -90,16 +91,8 @@ func TestOAuthSubInstanceLogin(t *testing.T) {
 	subSrv = httptest.NewServer(subMux)
 	defer subSrv.Close()
 
-	orig := mainInstanceURLForLogin
-	mainInstanceURLForLogin = func(instanceURL string) (string, bool) {
-		if instanceURL == subSrv.URL {
-			return centralSrv.URL, true
-		}
-		return "", false
-	}
-	t.Cleanup(func() { mainInstanceURLForLogin = orig })
-
 	client := NewClient(subSrv.URL, "", "jan@example.org", password)
+	client.SetMainInstanceURL(centralSrv.URL)
 	if err := client.Login(); err != nil {
 		t.Fatalf("Login: %v", err)
 	}
@@ -131,12 +124,41 @@ func TestDiscoverOAuthStartLoginURL(t *testing.T) {
 	defer srv.Close()
 
 	jarClient := NewClient(srv.URL, "", "", "").http
-	got, err := discoverOAuthStartLoginURL(jarClient, srv.URL)
+	got, authorize, err := discoverOAuthStartLogin(jarClient, srv.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := srv.URL + "/oauthclients/2/startlogin"
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
+	}
+	if originOf(authorize) != "https://central.example" {
+		t.Fatalf("authorize origin = %q", originOf(authorize))
+	}
+
+	// S8: the main instance is taken from the sub-instance's own redirect.
+	mainURL, err := DiscoverMainInstanceURL(srv.URL)
+	if err != nil || mainURL != "https://central.example" {
+		t.Fatalf("DiscoverMainInstanceURL = %q, %v", mainURL, err)
+	}
+}
+
+// S9: the OAuth chain must not follow redirects to other hosts.
+func TestFollowOAuthRedirectsRejectsForeignHost(t *testing.T) {
+	foreign := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("foreign host must not be contacted")
+	}))
+	defer foreign.Close()
+	foreignURL := strings.Replace(foreign.URL, "127.0.0.1", "localhost", 1)
+
+	sub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, foreignURL+"/steal", http.StatusFound)
+	}))
+	defer sub.Close()
+
+	client := NewClient(sub.URL, "", "u", "p")
+	err := client.followOAuthRedirects(sub.URL+"/oauthclients/1/startlogin", []string{sub.URL})
+	if err == nil || !strings.Contains(err.Error(), "abgelehnt") {
+		t.Fatalf("err = %v", err)
 	}
 }

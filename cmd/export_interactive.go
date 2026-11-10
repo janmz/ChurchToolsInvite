@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	churchtools "github.com/janmz/churchtools-invite/internal/churchtools"
 	config "github.com/janmz/churchtools-invite/internal/config"
+	"github.com/janmz/churchtools-invite/internal/textnorm"
 )
 
 func interactiveExportOptions(client *churchtools.Client, cfg *config.Config) (churchtools.PersonListOptions, exportInviteFilter, error) {
@@ -18,14 +20,9 @@ func interactiveExportOptions(client *churchtools.Client, cfg *config.Config) (c
 	applyCampusChoice(&opts, choice)
 
 	if choice.all {
-		fmt.Print("\nExport: alle Standorte")
+		fmt.Fprintln(os.Stderr, "\nExport: alle Standorte")
 	} else {
-		name := campusDisplayName(client, choice.campusID)
-		if name != "" {
-			fmt.Printf("\nStandort: %s (ID %d)", name, choice.campusID)
-		} else {
-			fmt.Printf("\nStandort: ID %d", choice.campusID)
-		}
+		fmt.Fprintf(os.Stderr, "\nStandort: %s\n", formatCampus(campusDisplayName(client, choice.campusID), choice.campusID))
 	}
 
 	mode, err := promptFilterMode()
@@ -43,7 +40,7 @@ func interactiveExportOptions(client *churchtools.Client, cfg *config.Config) (c
 		for i, status := range statuses {
 			statusItems[i] = menuItem{id: status.ID, name: status.Name}
 		}
-		statusID, err := promptMenu("Personenstatus auswählen", statusItems, false)
+		statusID, err := promptMenu("Personenstatus auswählen", statusItems)
 		if err != nil {
 			return churchtools.PersonListOptions{}, exportInviteFilterNEU, err
 		}
@@ -57,7 +54,7 @@ func interactiveExportOptions(client *churchtools.Client, cfg *config.Config) (c
 		for i, group := range groups {
 			groupItems[i] = menuItem{id: group.ID, name: group.Name}
 		}
-		groupID, err := promptMenu("Gruppe auswählen", groupItems, false)
+		groupID, err := promptMenu("Gruppe auswählen", groupItems)
 		if err != nil {
 			return churchtools.PersonListOptions{}, exportInviteFilterNEU, err
 		}
@@ -69,34 +66,39 @@ func interactiveExportOptions(client *churchtools.Client, cfg *config.Config) (c
 		return churchtools.PersonListOptions{}, exportInviteFilterNEU, err
 	}
 
+	// stderr: with "export -o -" stdout carries only the CSV.
+	summary := "\nExport: alle Standorte"
 	if opts.CampusID > 0 {
-		selectedCampus := campusDisplayName(client, opts.CampusID)
-		if selectedCampus == "" {
-			selectedCampus = fmt.Sprintf("ID %d", opts.CampusID)
-		}
-		fmt.Printf("\nExport: Standort %q (ID %d)", selectedCampus, opts.CampusID)
-	} else {
-		fmt.Print("\nExport: alle Standorte")
+		summary = "\nExport: Standort " + formatCampus(campusDisplayName(client, opts.CampusID), opts.CampusID)
 	}
 	if opts.StatusID > 0 {
-		fmt.Printf(", Status-ID %d", opts.StatusID)
+		summary += fmt.Sprintf(", Status-ID %d", opts.StatusID)
 	}
 	if opts.GroupID > 0 {
-		fmt.Printf(", Gruppe-ID %d", opts.GroupID)
+		summary += fmt.Sprintf(", Gruppe-ID %d", opts.GroupID)
 	}
-	fmt.Printf(", %s", describeInviteFilter(inviteFilter))
-	fmt.Println()
+	fmt.Fprintf(os.Stderr, "%s, %s\n", summary, describeInviteFilter(inviteFilter))
 
 	return opts, inviteFilter, nil
 }
 
+// campusName returns the name of campus id, or "" when it is unknown.
 func campusName(campuses []churchtools.Campus, id int) string {
 	for _, campus := range campuses {
 		if campus.ID == id {
 			return campus.Name
 		}
 	}
-	return fmt.Sprintf("ID %d", id)
+	return ""
+}
+
+// formatCampus renders a campus for messages: "Nord" (ID 2), or ID 2 when
+// the name is unknown.
+func formatCampus(name string, id int) string {
+	if name == "" {
+		return fmt.Sprintf("ID %d", id)
+	}
+	return fmt.Sprintf("%q (ID %d)", textnorm.Printable(name), id)
 }
 
 func describeExportFilters(opts churchtools.PersonListOptions, inviteFilter exportInviteFilter) string {
