@@ -11,13 +11,15 @@ package main
  * using ChurchTools for managing their contacts and communications.
  *
  *
- * Version: 2.8.0.56 (in version.go zu ändern)
+ * Version: 2.8.1.59 (in version.go zu ändern)
  *
  * Author: Jan Neuhaus, VAYA Consulting, https://vaya-consulting.de/development
  *
  * Repository: https://github.com/janmz/ChurchToolsInvite
  *
  * ChangeLog:
+ * 22.11.26	2.8.1	Fix: Now using sconfig/v3
+ *  22.11.26	2.8.1	Update: sconfig v3.1.1 (key format v3, bound to host name and drive)
  *  10.11.26	2.8.0	Feature: list statuses|groups|campuses, --status/--group accept ID or name
  *  10.11.26	2.7.2	Security: audit fixes (invite plan + name check, group state file, OAuth redirects, e-mail validation, Go 1.26, checksums)
  *  10.11.26	2.7.1	Fix: code review (setup credentials/main_url, progress output, Ctrl+C clean-up, e-mail sync, atomic writes, fewer API calls)

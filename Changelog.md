@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.8.1.59] - 2026-11-22 09:51:03
+
+### Changed
+
+- `github.com/janmz/sconfig/v3` von 3.0.0 auf 3.1.1 aktualisiert:
+  verschlüsselte Werte in `config.json` nutzen jetzt das Schlüsselformat v3
+  und sind zusätzlich an Rechnernamen und Laufwerk der Konfigurationsdatei
+  gebunden; vorhandene Werte werden beim nächsten Start automatisch
+  umgewandelt. Ältere Programmversionen können die umgewandelten Werte nicht
+  mehr lesen.
+- README (EN/DE): Hinweis auf die neue Bindung (Umbenennen des PCs,
+  Verschieben der Datei).
+
 ## [2.8.0.56] - 2026-11-10 17:22:27
 
 ### Added
